@@ -1,0 +1,12 @@
+# 管理后台图片地址前缀
+admin_system:
+  img_base_url: http://localhost:8888/api
+
+official_site:
+  base_url: http://test-www.example.io
+
+api_gateway:
+  base_url: http://127.0.0.1:8000
+
+stripe:
+  key: sk_test_xxx

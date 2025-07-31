@@ -1,0 +1,13 @@
+syntax = "proto3";
+package svc.currency;
+option go_package = "microsvc/protocol/svc/currencypb";
+
+// 金币交易类型
+enum GoldTxType{
+  GSTT_Unknown = 0;
+  GSTT_Recharge = 1; // 充值
+  GSTT_BuyGift = 2; // 买礼物
+  GSTT_AdminIncr = 4; // 管理员增加
+  GSTT_AdminDecr = 5; // 管理员扣减
+}
+

@@ -1,0 +1,15 @@
+syntax = "proto3";
+package svc.mqconsumer;
+option go_package = "microsvc/protocol/svc/mqconsumerpb";
+
+import "svc/commonpb/ws_c2s.proto";
+import "svc/commonpb/common.proto";
+
+
+message ReportMsgReq {
+  common.ReportMsg msg = 1;
+}
+
+service mqConsumerInt {
+  rpc ReportMsg(ReportMsgReq) returns (common.EmptyRes); // 来自长连接的客户端上报消息
+}

@@ -1,0 +1,79 @@
+# 存放公共相关配置，比如db信息
+grpc_port: 3000
+http_port: 3001
+simplesd_http_port: 3100
+svc_token_sign_key: qqxEuSacogUFMBax
+admin_token_sign_key: BZ6cx32WAhiZwpa1
+sensitive_info_crypt_key: 4DH9kr9n9x6E9bLf
+open_api_rate_limit: false
+
+grpc:
+  log_print_req_max_len: 500 # grpc 日志中打印请求包最大长度
+  log_print_resp_max_len: 500 # grpc 日志中日志打印响应包最大长度
+
+mysql:
+  biz_core: # 核心库
+    host: 172.19.0.6
+    port: 3306
+    user: root
+    password: some_pass
+    gorm_args: "charset=utf8mb4&parseTime=True&loc=Local"
+  biz_core_log: # 日志类数据库
+    host: 172.19.0.6
+    port: 3306
+    user: root
+    password: some_pass
+    gorm_args: "charset=utf8mb4&parseTime=True&loc=Local"
+  biz_admin: # 管理后台数据库
+    host: 172.19.0.6
+    port: 3306
+    user: root
+    password: some_pass
+    gorm_args: "charset=utf8mb4&parseTime=True&loc=Local"
+  micro_svc: # 微服务基础设施数据库（例如接口限速配置）
+    host: 172.19.0.6
+    port: 3306
+    user: root
+    password: some_pass
+    gorm_args: "charset=utf8mb4&parseTime=True&loc=Local"
+  micro_gateway:
+    host: 172.19.0.6
+    port: 3306
+    user: root
+    password: some_pass
+    gorm_args: "charset=utf8mb4&parseTime=True&loc=Local"
+redis:
+  biz_core: # 业务使用
+    db: 0
+    addr: localhost:6379
+    password: some_pass
+  admin: # 管理后台使用
+    db: 1
+    addr: localhost:6379
+    password: some_pass
+  micro_svc: # 微服务基础设施使用
+    db: 2
+    addr: localhost:6379
+    password: some_pass
+  micro_gateway: # 网关使用
+    db: 3
+    addr: localhost:6379
+    password: some_pass
+
+mq_config:
+  redis:
+    meta:
+      db: 4
+      addr: localhost:6379
+      password: some_pass
+
+# 外部通知：钉钉等
+external_notify:
+  dingtalk:
+    server_exception: &8b25 # 服务异常通知群
+      token: xxx
+      secret: yyy
+    mq_exception:
+      <<: *8b25
+    order_exception:
+      <<: *8b25

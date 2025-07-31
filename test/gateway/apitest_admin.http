@@ -1,0 +1,57 @@
+### AdminExt/GetUser
+POST http://localhost:8000/forward/admin/GetGiftList
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+  "base": {},
+  "inner" : {
+    "page": {
+      "pn": 1,
+      "ps": 10
+    },
+    "sort": {
+      "order_field": "created_at",
+      "order_type": 0
+    }
+  }
+}
+
+### AdminExt/ListUser
+POST http://localhost:8000/forward/admin/ListUser
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+  "search_uid": 1,
+  "search_nid": 1,
+  "search_nickname": "",
+  "search_phone": "",
+  "page": {
+    "pn": 1,
+    "ps": 10,
+    "is_download": false
+  },
+  "base": {
+    "platform": 3,
+    "system": 3,
+    "language": 1
+  }
+}
+
+### AdminExt/GetUser
+POST http://localhost:8000/forward/admin/UpdateBar
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+  "bar": {
+    "id": 1,
+    "name": "b1"
+  },
+  "base": {
+    "platform": 3,
+    "system": 3,
+    "language": 1
+  }
+}

@@ -1,0 +1,29 @@
+syntax = "proto3";
+package svc.currency;
+option go_package = "microsvc/protocol/svc/currencypb";
+
+import "svc/currencypb/enum.proto";
+
+message GetGoldAccountIntReq {
+  int64 uid = 1;
+}
+message GetGoldAccountIntRes {
+  int64 balance = 1;
+  int64 recharge_total = 2;
+}
+
+message UpdateUserGoldReq {
+  int64 uid = 1;
+  int64 delta = 2;
+  GoldTxType tx_type = 3;
+  string remark = 4;
+}
+
+message UpdateUserGoldRes {
+  string tx_id = 1;
+}
+
+service currencyInt {
+  rpc GetGoldAccount(GetGoldAccountIntReq) returns (GetGoldAccountIntRes);
+  rpc UpdateUserGold(UpdateUserGoldReq) returns (UpdateUserGoldRes);
+}

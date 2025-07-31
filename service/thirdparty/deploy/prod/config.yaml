@@ -1,0 +1,31 @@
+# 此配置文件只需要定义单个服务的特定配置。
+# 全局配置以及在 项目根目录/deploy/$env/ 中配置。
+root:
+  svc: thirdparty
+  log_level: info
+review:
+  shumei:
+    access_key: "access_key"
+    appid: "appid"
+    uid_crypto_key: "0123456789abcdef"
+oss:
+  local_upload_dir: "./micro_uploads"
+  tencent:
+    secret_id: "..."
+    secret_key: "..."
+    user_bucket_url: "https://tt-1253606684.cos.ap-guangzhou.myqcloud.com"
+    public_bucket_url: "https://pub_bucket-123.cos.ap-guangzhou.myqcloud.com"
+sms:
+  tencent:
+    secret_id: "..."
+    secret_key: "..."
+  aliyun:
+    access_key_id: "..."
+    access_key_secret: "..."
+
+email:
+  smtp_host: "smtp.titan.email"
+  smtp_port: 465
+  sender: "no-reply@example.io"
+  username: "example" # 作为邮件外显用户名
+  password: "no-reply@example.zzz"

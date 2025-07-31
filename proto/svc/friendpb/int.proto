@@ -1,0 +1,7 @@
+syntax = "proto3";
+package svc.friend;
+option go_package = "microsvc/protocol/svc/friendpb";
+
+service friendInt {
+
+}

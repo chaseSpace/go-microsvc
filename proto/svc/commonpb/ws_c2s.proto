@@ -1,0 +1,18 @@
+syntax = "proto3";
+package svc.common;
+option go_package = "microsvc/protocol/svc/commonpb";
+
+import "svc/commonpb/enum.proto";
+
+// 上报消息(客户端->服务端)
+
+// - 客户端通过type决定解析哪个data字段
+message ReportMsg {
+  ReportMsgType type = 1;
+  // 所有字段以 dt_ 开头（data）
+  MsgTest dt_test = 2;
+}
+
+message MsgTest {
+  string reason = 1;
+}

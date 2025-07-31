@@ -1,0 +1,144 @@
+syntax = "proto3";
+package svc.user;
+option go_package = "microsvc/protocol/svc/userpb";
+
+//import "svc/const.proto";
+import "svc/commonpb/user.proto";
+import "svc/commonpb/common.proto";
+import "svc/commonpb/enum.proto";
+import "svc/userpb/common.proto";
+import "validator.proto";
+
+message GetUserInfoIntReq{
+  repeated int64 uids = 1 [(validator.field).required = true];
+  bool populate_notfound = 2; // 是否将未找到的用户也填充在结果中
+  bool get_tiny = 3;
+}
+message GetUserInfoIntRes{
+  map<int64, common.User> umap = 1;
+  map<int64, common.UserTiny> umap2 = 2;
+}
+
+message AllocateUserNidReq{
+  int64 uid = 1 [(validator.field).required = true];
+  int64 nid = 2; // 0 表示清除靓号
+}
+message AllocateUserNidRes{}
+
+message AdminUpdateUserInfoReq {
+  int64 uid = 1 [(validator.field).required = true];
+  repeated UpdateBody body_array = 3;
+}
+
+message AdminUpdateUserInfoRes {
+}
+
+message NewPunishReq {
+  int64 uid = 1 [(validator.field).required = true];
+  int64 duration = 2; // 惩罚时长，单位秒
+  string reason = 3;
+  common.PunishType type = 4;
+  int64 admin_uid = 5; // 前端忽略
+}
+message NewPunishRes {}
+
+message IncrPunishDurationReq {
+  int64 id = 1;
+  int64 duration = 2; // 惩罚时长，单位秒
+  string reason = 3;
+  int64 admin_uid = 4; // 前端忽略
+}
+message IncrPunishDurationRes {}
+
+message DismissPunishReq {
+  int64 id = 1;
+  int64 admin_uid = 2; // 前端忽略
+  string reason = 3;
+}
+message DismissPunishRes {}
+
+message PunishListReq {
+  repeated int64 search_uid = 1;
+  int64 search_admin_uid = 2; // 添加人
+  repeated common.PunishType search_type = 3;
+  common.PunishState search_state = 4; // 不支持多选（不好查询）,0是全部
+  common.PageArgs page = 5;
+  // 固定按更新时间倒叙排列
+}
+message PunishListRes {
+  repeated Punish list = 1;
+  int64 total = 2;
+}
+
+message Punish {
+  int64 id = 1;
+  int64 uid = 2;
+  common.PunishType type = 3;
+  int64 duration = 4;
+  string reason = 5;
+  common.PunishState state = 6;
+  int64 created_at = 7;
+  int64 updated_at = 8;
+  int64 created_by = 9;
+  int64 updated_by = 10;
+  string nickname = 11; // 惩罚用户的昵称
+}
+
+message UserPunishLogReq{
+  int64 uid = 1 [(validator.field).required = true];
+}
+
+message UserPunishLogRes{
+  repeated PunishLog list = 1;
+}
+// e.g.
+// - 管理员x 在 什么时候 给予了 用户b xx惩罚 n天，原因是 xxx
+// - 管理员x 在 什么时候 解除了 用户b 的xx惩罚，原因是 xxx
+// - 管理员x 在 什么时候 追加了 用户b 的xx惩罚 n秒，原因是 xxx
+message PunishLog {
+  int64 id = 1;
+  int64 uid = 2;
+  common.PunishType type = 3;
+  common.PunishOpType op_type = 4;
+  int64 duration = 5; // 单位秒，前端计算为 n分钟/小时/天
+  string reason = 6;
+  int64 created_at = 7;
+  int64 created_by = 9;
+  string nickname = 11; // 惩罚用户的昵称
+}
+
+message GetUserPunishReq {
+  int64 uid = 1 [(validator.field).required = true];
+  common.PunishType type = 2; // 0表示全部
+}
+message GetUserPunishRes {
+  map<int32, Punish> pmap = 1; // key->PunishType (同个惩罚类型只会有一条正在生效的记录)
+}
+
+message ReviewProfileReq{
+  int64 uid = 1 [(validator.field).required = true];
+  bool is_pass = 2; // 是否通过
+  string reason = 3 [(validator.field).required = true]; // 审核不通过原因
+  common.BizType biz_type = 4 [(validator.field).required = true]; // 资料类型，如昵称、头像等
+}
+message ReviewProfileRes{}
+
+// *Int 是内部服务接口组，给管理后台或其他服务调用
+service userInt {
+  rpc GetUserInfoInt(GetUserInfoIntReq) returns (GetUserInfoIntRes); // 与Ext接口重名时添加后缀·Int·
+
+  // 用户信息管理（管理后台调用）
+  rpc AllocateUserNid(AllocateUserNidReq) returns (AllocateUserNidRes); // 分配用户靓号
+  rpc AdminUpdateUserInfo(AdminUpdateUserInfoReq) returns (AdminUpdateUserInfoRes); // 管理员更新用户信息（可绕过频率限制）
+
+  // 惩罚功能（基本是管理后台调用）
+  rpc NewPunish(NewPunishReq) returns (NewPunishRes); // 新增惩罚（若同类型惩罚已存在，则续期）
+  rpc IncrPunishDuration (IncrPunishDurationReq) returns (IncrPunishDurationRes); // 续期惩罚
+  rpc DismissPunish (DismissPunishReq) returns (DismissPunishRes); // 解除惩罚
+  rpc PunishList (PunishListReq) returns (PunishListRes); // 惩罚列表（支持过滤）
+  rpc UserPunishLog (UserPunishLogReq) returns (UserPunishLogRes); // 单用户详细惩罚记录（暂不分页）
+  rpc GetUserPunish (GetUserPunishReq) returns (GetUserPunishRes); // 获取用户正在生效的惩罚信息
+
+  // 审核相关
+  rpc ReviewProfile(ReviewProfileReq) returns (ReviewProfileRes); // 审核用户资料（昵称、头像等）
+}

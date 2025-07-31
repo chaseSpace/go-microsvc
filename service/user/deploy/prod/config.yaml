@@ -1,0 +1,15 @@
+# 存放user相关配置，db信息配置到根目录的deploy/
+root:
+  svc: user
+  log_level: info
+  disable_cache: false # 本地开发，禁用缓存功能（直读DB），免去缓存干扰问题
+
+auth:
+  token_expiry: "7d"
+  # 存放user相关配置，db信息配置到根目录的deploy/
+
+open_sign_in_rate_limit: true
+open_sign_up_rate_limit: true
+
+default_assets:
+  avatar: uploads/FBT_Avatar/default/111.png

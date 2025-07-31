@@ -1,0 +1,132 @@
+syntax = "proto3";
+package svc.moment;
+option go_package = "microsvc/protocol/svc/momentpb";
+
+import "svc/commonpb/common.proto";
+import "svc/momentpb/enum.proto";
+import "svc/commonpb/user.proto";
+import "validator.proto";
+
+message ListFollowMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 last_index = 2; // 用于翻页的索引，初始值0
+  int64 page_size = 3 [(validator.field).int64 = {gte: 5, lte: 20}];
+}
+message ListFollowMomentRes{
+  repeated MomentMix list = 1;
+  int64 last_index = 2; // 作为下次的last_index，-1表示最后一页了（客户端可给出TIPS）
+}
+message Moment{
+  int64 mid = 1;
+  int64 uid = 2;
+  string text = 3;
+  MomentType type = 4;
+  ReviewStatus review_status = 5;
+  repeated string media_urls = 6;
+  int64 created_at = 7;
+  int64 likes = 8;
+  int64 comments = 9;
+  int64 forwards = 10;
+}
+
+message MomentMix {
+  Moment moment = 1;
+  common.User user = 2;
+}
+
+message CreateMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  string text = 2;
+  MomentType type = 3;
+  repeated string media_urls = 4;
+}
+message CreateMomentRes{
+  int64 mid = 1;
+  bool waiting_review = 2; // 是否需要审核，结果通过系统私信通知（true时前端可提示“发布成功”，false可提示“发布成功，审核后他人可见”）
+}
+
+message DeleteMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 mid = 2;
+}
+message DeleteMomentRes{}
+
+message LikeMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 mid = 2;
+  bool is_like = 3; // （取消）点赞
+}
+message LikeMomentRes{}
+
+message CommentMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 mid = 2;
+  int64 reply_uid = 3; // 回复某人
+  string content = 4;
+}
+message CommentMomentRes{}
+
+message ForwardMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 mid = 2;
+}
+message ForwardMomentRes{}
+
+message ListRecommendMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 last_index = 2; // 用于翻页的索引，初始值0
+  int64 page_size = 3;
+}
+
+message ListRecommendMomentRes{
+  repeated MomentMix list = 1;
+  int64 last_index = 2; // 作为下次的last_index，-1表示最后一页了（客户端可给出TIPS）
+}
+
+message ListLatestMomentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 last_index = 2; // 用于翻页的索引，初始值0
+  int64 page_size = 3 [(validator.field).int64 = {gte: 1, lte: 20}]; // 推荐值10
+}
+
+message ListLatestMomentRes{
+  repeated MomentMix list = 1;
+  int64 last_index = 2; // 作为下次的last_index，-1表示最后一页了（客户端可给出TIPS）
+}
+
+message GetCommentReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 mid = 2;
+  repeated common.Sort sort = 3;
+  common.PageArgs page = 4  [(validator.field).required = true];
+}
+message GetCommentRes{
+  repeated CommentMix list = 1;
+  int64 total = 2;
+}
+message CommentMix {
+  Comment comment = 1;
+  common.User user = 2;
+  common.User reply_user = 3;
+}
+message Comment{
+  int64 reply_uid = 1;
+  int64 mid = 2;
+  int64 uid = 3;
+  string content = 4;
+  int64 created_at = 5;
+}
+
+service momentExt {
+  /* 动态基本功能 */
+  rpc CreateMoment(CreateMomentReq) returns (CreateMomentRes); // 创建动态(审核后他人可见)
+  rpc DeleteMoment(DeleteMomentReq) returns (DeleteMomentRes); // 删除动态
+  rpc LikeMoment (LikeMomentReq) returns (LikeMomentRes); // 点赞动态
+  rpc CommentMoment (CommentMomentReq) returns (CommentMomentRes); // 评论动态
+  rpc ForwardMoment (ForwardMomentReq) returns (ForwardMomentRes); // 转发动态
+  rpc GetComment(GetCommentReq) returns (GetCommentRes); // 获取单个动态的评论（完全按回复时间排序，与微信朋友圈评论展示一致即可）
+
+  rpc ListFollowMoment(ListFollowMomentReq) returns (ListFollowMomentRes); // 关注 - 动态列表(无缓存)
+  rpc ListRecommendMoment(ListRecommendMomentReq) returns (ListRecommendMomentRes); // 推荐 - 动态列表(异性，无缓存)
+  rpc ListLatestMoment(ListLatestMomentReq) returns (ListLatestMomentRes); // 最新 - 动态列表(异性，无缓存)
+}

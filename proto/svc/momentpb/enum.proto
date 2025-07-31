@@ -1,0 +1,20 @@
+syntax = "proto3";
+package svc.moment;
+option go_package = "microsvc/protocol/svc/momentpb";
+
+
+enum MomentType{
+  MT_None = 0;
+  MT_Text = 1; // 纯文字
+  MT_Image = 2; // 图片，可加文字
+  MT_Video = 3; // 视频，可加文字
+  MT_Audio = 4; // 音频，可加文字
+}
+
+// 动态服务 只有3种状态
+enum ReviewStatus{
+  RS_None = 0;
+  RS_Pending = 1; // AI审核中
+  RS_Pass = 2; // 人审通过
+  RS_Reject = 3; // 人审拒绝
+}

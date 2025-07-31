@@ -1,0 +1,25 @@
+syntax = "proto3";
+package svc.common;
+option go_package = "microsvc/protocol/svc/commonpb";
+
+import "svc/commonpb/enum.proto";
+
+// 推送消息(服务端->客户端)
+
+// - 客户端通过type决定解析哪个data字段
+message PushMsg {
+  PushMsgType type = 1;
+  // 无法使用oneof，会导致json.unmarshal失败
+  //  oneof data {
+  //    MsgKickOffline kick_offline = 2;
+  //  }
+  // 也不可以定义多字段，因为所有*.pb.go文件中的json tag `omitempty` 已被删除，多字段会导致推送data信息包含许多没必要的字段面量
+  bytes buf = 2; // 将下面的Msg进行JSON传入
+}
+
+message MsgErrorMsg {
+  string text = 1;
+}
+message MsgKickOffline {
+  string reason = 1;
+}

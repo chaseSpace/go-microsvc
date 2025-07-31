@@ -1,0 +1,18 @@
+syntax = "proto3";
+package svc.friend;
+option go_package = "microsvc/protocol/svc/friendpb";
+
+enum RelationType {
+  RT_None = 0; // 无关系
+  RT_Friend = 1; // 互关
+  RT_Follow = 2; // 关注
+  RT_Fans = 3; // 粉丝
+  RT_Block = 4; // 拉黑
+  RT_BeBlock = 5; // 被拉黑
+  RT_MutualBlock = 6; // 互相拉黑
+}
+
+enum VisitLocation {
+  VL_Unknown = 0;
+  VL_Homepage = 1;
+}

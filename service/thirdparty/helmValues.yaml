@@ -1,0 +1,100 @@
+# 这个文件是helm配置文件的一部分，用于定义单个服务需要创建的K8s资源的各项配置
+# 每个微服务都需要定义一个此配置文件
+replicaCount: 2
+
+# 大部分常见配置都在这里
+variables:
+  name: go-thirdparty  # 这个名字会作为deployment、pod等资源的名字的前缀
+  deployEnv: "beta" # 微服务部署环境：dev|beta|prod  可以被 MICRO_SVC_ENV 覆盖
+  otherEnv:
+    - name: A
+      value: B
+
+image:
+  tag: "" # 开发/测试环境可以使用空（表示latest），生产环境需要使用版本号形式的tag，以便回滚
+
+imagePullSecrets: [ ]
+nameOverride: "" # 这个名字会作为chart资源的第二个名字，会用作k8s资源标签
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: { }
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: { }
+
+# 自定义pod标签
+podLabels:
+
+podSecurityContext: { }
+# fsGroup: 2000
+
+securityContext: { }
+# capabilities:
+#   drop:
+#   - ALL
+# readOnlyRootFilesystem: true
+# runAsNonRoot: true
+# runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: { }
+  # kubernetes.io/ingress.class: nginx
+  # kubernetes.io/tls-acme: "true"
+
+  hosts:
+    - host: go-svc-user # 服务的dns地址，自定义就行，如果配置证书则需要与证书保持一致
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: [ ]
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# 每个服务要限制资源
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: [ ]
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: [ ]
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: { }
+
+tolerations: [ ]
+
+affinity: { }

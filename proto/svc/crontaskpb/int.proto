@@ -1,0 +1,16 @@
+syntax = "proto3";
+package svc.crontask;
+option go_package = "microsvc/protocol/svc/crontaskpb";
+
+//import "svc/commonpb/common.proto";
+
+
+message TestIntReq {
+}
+message TestIntRes {
+  string msg = 1;
+}
+
+service crontaskInt {
+  rpc TestInt(TestIntReq) returns (TestIntRes);
+}

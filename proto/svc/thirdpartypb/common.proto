@@ -1,0 +1,55 @@
+syntax = "proto3";
+package svc.thirdparty;
+option go_package = "microsvc/protocol/svc/thirdpartypb";
+
+import "svc/commonpb/enum.proto";
+
+enum TextType{
+  TT_None = 0;
+  TT_Moment = 1; // 动态
+  TT_IM = 2; // 私信
+  TT_Comment = 3; // 评论
+  TT_Nickname = 4; // 昵称
+  TT_Firstname = 5;
+  TT_Lastname = 6;
+  TT_Desc = 7; // 个人描述
+}
+
+enum ImageType{
+  IT_None = 0;
+  IT_Moment = 1; // 动态图片
+  IT_Avatar = 2; // 头像
+  IT_IM = 3;
+  IT_Album = 4; // 相册
+}
+
+enum AudioType{
+  AT_None = 0;
+  AT_Moment = 1;
+  AT_IM = 2;
+}
+
+enum VideoType{
+  VT_None = 0;
+  VT_Moment = 1;
+  VT_IM = 2;
+}
+
+message ReviewParamsExt {
+  message UniqReqId {
+    string val = 1;
+  }
+  message Sex {
+    common.Sex val = 1;
+  }
+  UniqReqId uniq_req_id = 1;
+  Sex sex = 2;
+}
+
+enum FileBizType {
+  FBT_None = 0;
+  FBT_Avatar = 1;
+
+  FBT_BAR_BG = 100; // bar background
+  FBT_BAR_Cover = 101;
+}

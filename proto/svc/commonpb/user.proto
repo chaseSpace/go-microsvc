@@ -1,0 +1,72 @@
+syntax = "proto3";
+package svc.common;
+option go_package = "microsvc/protocol/svc/commonpb";
+
+import "svc/commonpb/enum.proto";
+//import "svc/commonpb/common.proto";
+
+message UserTag {
+  UserTagType type = 1;
+  string value = 2;
+}
+
+message User{
+  int64 uid = 1;
+  string nickname = 2;
+  string firstname = 3;
+  string lastname = 4;
+  string birthday = 5;
+  Sex sex = 6;
+  int64 nid = 7; // 靓号
+  string phone = 8;
+  string email = 9;
+  string avatar = 10;
+}
+
+message UserTiny {
+  int64 uid = 1;
+  string nickname = 2;
+  string firstname = 3;
+  string lastname = 4;
+  Sex sex = 5;
+  string avatar = 6;
+}
+
+message DataPassword {
+  // 客户端已经使用特定算法将密码原文进行哈希，后端拿到的是哈希值（db存储的是进一步加盐哈希）
+  // 逻辑：当旧密码比对成功时，更新密码
+  string new = 1;
+  string old = 2;
+}
+
+message DataPhone {
+  string area_code = 1; // 86
+  string phone = 2; // 手机号
+}
+
+message UserGold {
+  int64 balance = 1; // 余额
+  int64 consume_total = 2; // 累计消费金额
+  int64 recharge_total = 3; // 累计充值金额
+}
+
+message UserSignInLog {
+  int64 sign_in_at = 1; // 登录时间戳
+  string ip = 2;
+  SignInType type = 3;
+  SignInPlatform platform = 4;
+  SignInSystem system = 5;
+}
+
+message UserPunish {
+  common.PunishType type = 1;
+  int64 duration = 2;
+  string reason = 3;
+  common.PunishState state = 4;
+  int64 created_at = 7;
+}
+
+// 用户注销
+message UserTerminate {
+  int64 operate_at = 1; // timestamp, 大于0表示已注销
+}

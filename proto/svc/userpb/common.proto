@@ -1,0 +1,36 @@
+syntax = "proto3";
+package svc.user;
+option go_package = "microsvc/protocol/svc/userpb";
+import "validator.proto";
+
+enum UserInfoType {
+  UUIT_Invalid = 0;  // 占位
+  UUIT_Avatar = 1;
+  UUIT_Nickname = 2;
+  UUIT_Firstname = 3;
+  UUIT_Lastname = 4;
+  UUIT_Desc = 5;
+  UUIT_Password = 6; // 此时，any_value = "$old_pass|$new_pass"
+  UUIT_ClearPassword = 7; // 此时，any_value 为空
+  UUIT_Birthday = 8;
+  UUIT_Sex = 9;
+  UUIT_Phone = 10; // any_value = "$area_code|$phone"
+  UUIT_Education = 11; // any_value = commonpb.EducationType
+  UUIT_Height = 12;
+  UUIT_Weight = 13;
+  UUIT_Emotional = 14; // any_value = commonpb.EmotionalType
+  UUIT_YearIncome = 15; // any_value = commonpb.YearIncomeType
+  UUIT_Occupation = 16;
+  UUIT_Hometown = 17;
+  UUIT_LivingHouse = 18; // any_value = commonpb.LivingHouseType
+  UUIT_HouseBuying = 19; // any_value = commonpb.HouseBuyingType
+  UUIT_CarBuying = 20; // any_value = commonpb.CarBuyingType
+  UUIT_University = 21;
+  UUIT_Tags = 22; // any_value = ["tag1", "tag2"]
+  UUIT_Email = 23;
+}
+
+message UpdateBody{
+  UserInfoType field_type = 1;
+  string any_value = 2 [(validator.field).required = true];
+}

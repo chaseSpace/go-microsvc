@@ -1,0 +1,13 @@
+syntax = "proto3";
+package svc.admin;
+option go_package = "microsvc/protocol/svc/adminpb";
+import "svc/commonpb/enum.proto";
+
+message AdminBaseReq{
+  string user_agent = 1; // 浏览UA（只是个例子）
+  common.SignInPlatform platform = 2;
+  common.SignInSystem system = 3;
+  common.Lang language = 4; // 客户端语言
+  // ...
+  map<string, string> extension = 10;
+}

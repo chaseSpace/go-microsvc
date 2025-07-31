@@ -1,0 +1,74 @@
+syntax = "proto3";
+package svc.gift;
+option go_package = "microsvc/protocol/svc/giftpb";
+
+import "svc/giftpb/enum.proto";
+import "svc/giftpb/ext.proto";
+import "svc/commonpb/common.proto";
+import "validator.proto";
+
+message GetGiftListIntReq{
+  common.PageArgs page = 1 [(validator.field).required = true];
+  common.Sort sort = 2; // 支持 created_at | price
+}
+message GetGiftListIntRes{
+  repeated GiftItem list = 1;
+  int64 total = 2;
+}
+
+message GiftItem {
+  Gift meta = 1;
+  gift.GiftState state = 2;
+  int64 created_at = 3;
+  int64 updated_at = 4;
+}
+
+message SaveGiftItemReq{
+  Gift meta = 1;
+  bool is_add = 2; // true:新增 false:更新
+  gift.GiftState state = 3; // 仅更新时允许设置状态
+}
+message SaveGiftItemRes{
+}
+
+message DelGiftItemReq {
+  int64 id = 1;
+}
+message DelGiftItemRes {}
+
+message GetUserGiftTxLogReq{
+  int64 search_from_uid = 1;
+  int64 search_to_uid = 2;
+  int64 search_gift_id = 3;
+  repeated GiftScene search_scenes = 4;
+  string search_gift_name = 5; // 模糊搜索礼物名称
+  int64 search_amount = 6;
+  repeated TxType search_tx_types = 7;
+  repeated GiftType search_gift_types = 8;
+  int64 search_min_price = 9;
+  int64 search_max_price = 10;
+  int64 search_min_total_value = 11; // price * amount
+  repeated common.Sort sort = 20;
+  common.PageArgs page = 21 [(validator.field).required = true];
+}
+
+message GetUserGiftTxLogRes{
+  repeated GiftTxLogInt list = 1;
+  int64 total = 2;
+}
+
+message GiftTxLogInt{
+  GiftTxLogBase base = 1;
+  int64 from_uid = 2;
+  int64 to_uid = 3;
+  TxType tx_type = 4;
+}
+
+service giftInt {
+  // 礼物的增删改查
+  rpc GetGiftListInt(GetGiftListIntReq) returns (GetGiftListIntRes);
+  rpc SaveGiftItem(SaveGiftItemReq) returns (SaveGiftItemRes);
+  rpc DelGiftItem(DelGiftItemReq) returns (DelGiftItemRes);
+  // 查看用户礼物流水（支持搜索）
+  rpc GetUserGiftTxLog(GetUserGiftTxLogReq) returns (GetUserGiftTxLogRes);
+}

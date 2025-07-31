@@ -1,0 +1,35 @@
+syntax = "proto3";
+package svc.common;
+option go_package = "microsvc/protocol/svc/commonpb";
+
+// 验证码使用场景
+enum SmsCodeScene{
+  SCS_None = 0;
+  SCS_SignUp = 1;
+  SCS_SignIn = 2;
+  SCS_ResetPasswd = 3;
+}
+
+// 邮箱验证码使用场景
+enum EmailCodeScene{
+  ECS_None = 0;
+  ECS_SignUp = 1;
+  ECS_ResetPasswd = 2;
+}
+
+// OSS上传类型
+enum OSSUploadType{
+  OUT_None = 0;
+  OUT_Avatar = 1; // 头像
+  OUT_Background = 2; // 主页背景
+  OUT_Album = 3; // 相册
+  OUT_AlbumCover = 4; // 相册封面
+}
+
+// AI审核结果
+enum AIReviewStatus{
+  ARS_Pending = 0; // 处理中
+  ARS_Pass = 1;
+  ARS_Reject = 2;
+  ARS_Review = 3; // 需要人审
+}

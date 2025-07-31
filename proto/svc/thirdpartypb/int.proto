@@ -1,0 +1,138 @@
+syntax = "proto3";
+package svc.thirdparty;
+option go_package = "microsvc/protocol/svc/thirdpartypb";
+
+import "svc/commonpb/thirdparty.proto";
+//import "svc/commonpb/enum.proto";
+import "svc/thirdpartypb/common.proto";
+import "validator.proto";
+
+
+message SendSmsCodeIntReq {
+  string area_code = 1; // 手机区号，如86
+  string phone = 2;
+  common.SmsCodeScene scene = 3;
+  bool test_only = 4; // 仅供测试
+}
+message SendSmsCodeIntRes {
+}
+
+message SendEmailCodeIntReq {
+  string email = 1;
+  common.EmailCodeScene scene = 2;
+  bool test_only = 3; // 测试，不实际发邮箱，但仍可走验证流程（验证码咨询后端人员）
+}
+message SendEmailCodeIntRes {
+}
+
+message VerifySmsCodeIntReq {
+  int64 uid = 1;
+  string area_code = 2;
+  string phone = 3;
+  string code = 4;
+  common.SmsCodeScene scene = 5 [(validator.field).enum.defined_only = true];
+  int64 update_expire_sec = 6; // 延长有效期，以供多次验证
+}
+message VerifySmsCodeIntRes {
+  bool pass = 1;
+}
+
+message VerifyEmailCodeIntReq {
+  string email = 1;
+  string code = 2;
+  common.EmailCodeScene scene = 3;
+  bool delete_after_verify = 4;
+}
+message VerifyEmailCodeIntRes {
+  bool is_match = 1;
+}
+
+message SyncReviewTextReq {
+  int64 uid = 1;
+  string text = 2;
+  TextType type = 3;
+  ReviewParamsExt ext = 4;
+}
+message SyncReviewTextRes {
+  common.AIReviewStatus status = 1;
+  string message = 2; // 三方返回的描述
+}
+
+message SyncReviewImageReq {
+  int64 uid = 1;
+  string uri = 2;
+  ImageType type = 3;
+  ReviewParamsExt ext = 4;
+}
+
+message SyncReviewImageRes {
+  common.AIReviewStatus status = 1;
+  string message = 2; // 三方返回的描述
+}
+
+message AsyncReviewAudioReq {
+  int64 uid = 1;
+  string uri = 2;
+  AudioType type = 3;
+  ReviewParamsExt ext = 4;
+}
+message AsyncReviewAudioRes {
+  string req_id = 1; // 定时任务20s一次轮询结果
+  string th_name = 2; // 所使用的三方服务名
+}
+
+message AsyncReviewVideoReq {
+  int64 uid = 1;
+  string uri = 2;
+  VideoType type = 3;
+  ReviewParamsExt ext = 4;
+}
+message AsyncReviewVideoRes {
+  string req_id = 1; // 定时任务20s一次轮询结果
+  string th_name = 2; // 所使用的三方服务名
+}
+
+message QueryAudioReviewResultReq {
+  string th_name = 1;
+  ReviewParamsExt ext = 2;
+}
+message QueryAudioReviewResultRes {
+  common.AIReviewStatus status = 1;
+  string message = 2; // 三方返回的描述
+}
+
+message QueryVideoReviewResultReq {
+  string th_name = 1;
+  ReviewParamsExt ext = 2;
+}
+message QueryVideoReviewResultRes {
+  common.AIReviewStatus status = 1;
+  string message = 2; // 三方返回的描述
+}
+
+message LocalUploadIntReq {
+  string file_buf_base64 = 2 [(validator.field).string = {min_len: 1}]; // 不同biz_type又不同大小限制，最大20M
+  FileBizType biz_type = 3[(validator.field).enum = {not_in:[0]}];
+}
+message LocalUploadIntRes {
+  string path = 1;
+  string access_uri = 2; // 可访问地址
+}
+
+service thirdpartyInt {
+  /* 验证码 */
+  rpc SendSmsCodeInt(SendSmsCodeIntReq) returns (SendSmsCodeIntRes); // 发送短信验证码
+  rpc SendEmailCodeInt(SendEmailCodeIntReq) returns (SendEmailCodeIntRes);
+  rpc VerifySmsCodeInt(VerifySmsCodeIntReq) returns (VerifySmsCodeIntRes);
+  rpc VerifyEmailCodeInt(VerifyEmailCodeIntReq) returns (VerifyEmailCodeIntRes);
+
+  /* 多媒体审核 */
+  rpc SyncReviewText(SyncReviewTextReq) returns (SyncReviewTextRes); // 同步审核文本
+  rpc SyncReviewImage(SyncReviewImageReq) returns (SyncReviewImageRes); // 同步审核图片
+  rpc AsyncReviewAudio(AsyncReviewAudioReq) returns (AsyncReviewAudioRes); // 异步审核音频 todo: implement
+  rpc AsyncReviewVideo(AsyncReviewVideoReq) returns (AsyncReviewVideoRes); // 异步审核视频
+  rpc QueryAudioReviewResult(QueryAudioReviewResultReq) returns (QueryAudioReviewResultRes); // 查询音频审核结果
+  rpc QueryVideoReviewResult(QueryVideoReviewResultReq) returns (QueryVideoReviewResultRes); // 查询视频审核结果
+
+  rpc LocalUploadInt(LocalUploadIntReq) returns (LocalUploadIntRes);
+}

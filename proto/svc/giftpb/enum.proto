@@ -1,0 +1,43 @@
+syntax = "proto3";
+package svc.gift;
+option go_package = "microsvc/protocol/svc/giftpb";
+
+//import "svc/commonpb/common.proto";
+
+// 礼物类型
+enum GiftType {
+  GT_Normal = 0; // 普通礼物
+}
+
+// 礼物状态
+enum GiftState {
+  GS_Off = 0; // 下架
+  GS_On = 1; // 上架
+}
+
+// 礼物交易类型（第三人称视角）
+enum TxType {
+  TT_Unknown = 0;
+  TT_Purchase = 1; // 购买
+  TT_Send = 2; // 赠送
+  TT_AdminIncr = 3; // 管理员增加
+  TT_AdminDecr = 4; // 管理员扣减
+}
+
+// 礼物交易类型（第一人称视角）
+enum FirstPersonalTxType {
+  FPTT_Unknown = 0;
+  FPTT_Purchase = 1; // 购买
+  FPTT_Send = 2; // 送礼
+  FPTT_Receive = 3; // 收礼
+  FPTT_AdminIncr = 4; // 管理员增加
+  FPTT_AdminDecr = 5; // 管理员扣减
+}
+
+// 礼物所在场景
+enum GiftScene {
+  GS_Unknown = 0;
+  GS_IM = 1; // 聊天页
+  GS_Room = 2; // 房间
+  GS_Recommend = 3; // 推荐页
+}

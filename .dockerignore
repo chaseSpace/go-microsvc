@@ -1,0 +1,8 @@
+./docs
+./deploy/go-svc-chart
+*.md
+tool
+tool_mac
+tool_win
+test
+.git

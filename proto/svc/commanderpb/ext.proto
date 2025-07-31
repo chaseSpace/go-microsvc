@@ -1,0 +1,18 @@
+syntax = "proto3";
+package svc.commander;
+option go_package = "microsvc/protocol/svc/commanderpb";
+
+import "svc/commonpb/common.proto";
+//import "svc/commonpb/const.proto";
+//
+
+message TestReq {
+  common.BaseExtReq base = 1;
+}
+message TestRes {
+  string msg = 1;
+}
+
+service commanderExt {
+  rpc Test(TestReq) returns (TestRes);
+}

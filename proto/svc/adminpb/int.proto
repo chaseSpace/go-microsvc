@@ -1,0 +1,55 @@
+syntax = "proto3";
+package svc.admin;
+option go_package = "microsvc/protocol/svc/adminpb";
+
+import "svc/commonpb/common.proto";
+import "svc/commonpb/enum.proto";
+import "validator.proto";
+
+message ConfigCenterGetReq {
+  repeated string keys = 1;
+}
+message ConfigCenterGetRes {
+  // key: 配置英文名
+  // value: 字符串格式的配置值，可以是json，自行解析
+  map<string, common.ConfigItem> cmap = 1;
+}
+
+message ConfigCenterUpdateIntReq {
+  // key: 配置英文名(不含空格，会被过滤)
+  // value: 字符串格式的配置值，可以是json，自行解析
+  common.ConfigItemCore item = 1; // by ckey
+  bool add_on_not_exist = 2;
+}
+message ConfigCenterUpdateIntRes {}
+
+message SwitchCenterGetReq {
+  repeated string keys = 1;
+}
+
+message SwitchCenterGetRes {
+  // key: 配置
+  // value: 只能是int32，必须遵循0关1开规则，其他数值自行定义
+  map<string, common.SwitchItem> smap = 1;
+}
+
+message AddReviewReq {
+  int64 uid = 1 [(validator.field).int64.gt = 0];
+  common.ReviewType type = 2;
+  string text = 3;
+  repeated string media_urls = 4; // 图片/视频/音频
+  common.ReviewStatus status = 5; // 输入AI审核状态 或 人工审核
+  common.BizType biz_type = 6; // 业务类型
+  int64 biz_uniq_id = 7; // 源业务主键id
+  string th_task_id = 8; // 第三方审核任务id
+}
+message AddReviewRes {}
+
+service adminInt {
+  rpc ConfigCenterGet(ConfigCenterGetReq) returns (ConfigCenterGetRes);
+  rpc ConfigCenterUpdateInt(ConfigCenterUpdateIntReq) returns (ConfigCenterUpdateIntRes);
+  rpc SwitchCenterGet(SwitchCenterGetReq) returns (SwitchCenterGetRes); // todo: implement
+
+  // 审核相关
+  rpc AddReview(AddReviewReq) returns (AddReviewRes); // 添加审核数据（文本/图片..）
+}

@@ -1,0 +1,163 @@
+syntax = "proto3";
+package svc.admin;
+option go_package = "microsvc/protocol/svc/adminpb";
+
+import "svc/giftpb/int.proto";
+import "svc/currencypb/int.proto";
+import "svc/adminpb/common.proto";
+import "svc/userpb/int.proto";
+import "svc/commonpb/common.proto";
+import "svc/adminpb/ext_local_impl.proto";
+
+/*
+admin服务的Ext（外部）接口仅允许管理后台调用，不支持客户端调用（鉴权机制不同）
+*/
+
+message UpdateUserGoldReq {
+  AdminBaseReq base = 1;
+  int64 uid = 2;
+  int64 Delta = 3; // 正负即可
+  string remark = 4;
+}
+message UpdateUserGoldRes {
+  currency.UpdateUserGoldRes inner = 1;
+}
+
+message GetGiftListReq{
+  AdminBaseReq base = 1;
+  gift.GetGiftListIntReq inner = 2;
+}
+message GetGiftListRes{
+  gift.GetGiftListIntRes inner = 2;
+}
+
+message SaveGiftItemReq {
+  AdminBaseReq base = 1;
+  gift.SaveGiftItemReq inner = 2;
+}
+message SaveGiftItemRes {
+  gift.SaveGiftItemRes inner = 2;
+}
+
+message DelGiftItemReq {
+  AdminBaseReq base = 1;
+  gift.DelGiftItemReq inner = 2;
+}
+message DelGiftItemRes {
+  gift.DelGiftItemRes inner = 2;
+}
+
+message GetUserGiftTxLogReq {
+  AdminBaseReq base = 1;
+  gift.GetUserGiftTxLogReq inner = 2;
+}
+message GetUserGiftTxLogRes {
+  gift.GetUserGiftTxLogRes inner = 2;
+}
+
+message NewPunishReq {
+  AdminBaseReq base = 1;
+  user.NewPunishReq inner = 2;
+}
+message NewPunishRes {
+  user.NewPunishRes inner = 2;
+}
+
+message IncrPunishDurationReq {
+  AdminBaseReq base = 1;
+  user.IncrPunishDurationReq inner = 2;
+}
+message IncrPunishDurationRes {
+  user.IncrPunishDurationRes inner = 2;
+}
+
+message DismissPunishReq {
+  AdminBaseReq base = 1;
+  user.DismissPunishReq inner = 2;
+}
+message DismissPunishRes {
+  user.DismissPunishRes inner = 2;
+}
+
+message PunishListReq {
+  AdminBaseReq base = 1;
+  user.PunishListReq inner = 2;
+}
+message PunishListRes {
+  user.PunishListRes inner = 2;
+}
+
+message UserPunishLogReq {
+  AdminBaseReq base = 1;
+  user.UserPunishLogReq inner = 2;
+}
+message UserPunishLogRes {
+  user.UserPunishLogRes inner = 2;
+}
+
+message ListUserAPICallLogReq{
+  AdminBaseReq base = 1;
+  int64 uid = 2;
+  common.TimeRange time_range = 3;
+  common.PageArgs page = 4;
+}
+message ListUserAPICallLogRes{
+  repeated APICallLog list = 1;
+  int64 total = 2;
+}
+
+message APICallLog {
+  int64 uid = 1;
+  string api_name = 2;
+  string api_ctrl = 3;
+  string req_ip = 4;
+  string duration = 5;
+  bool success = 6;
+  string err_msg = 7;
+  string created_at = 8;
+}
+
+// AdminExt
+// Note：admin主要调用其他服务的内部接口来完成业务，调用方式一般使用 req 内嵌 inner 字段的方式（参考 GetGiftList）
+// -- 但是 inner 方式的缺点是将内部RPC接口字段全暴露给外部，对于不能将部分字段暴露给外部的某些场景中，就不要使用inner（例如 UpdateUserGold）
+service adminExt {
+  /* 金币相关 */
+  rpc UpdateUserGold(UpdateUserGoldReq) returns (UpdateUserGoldRes); // 用户金币增减
+
+  /* 礼物相关 */
+  rpc GetGiftList(GetGiftListReq) returns (GetGiftListRes); // 礼物列表
+  rpc SaveGiftItem(SaveGiftItemReq) returns (SaveGiftItemRes);
+  rpc DelGiftItem(DelGiftItemReq) returns (DelGiftItemRes);
+  rpc GetUserGiftTxLog(GetUserGiftTxLogReq) returns (GetUserGiftTxLogRes); // 查看用户礼物流水（支持搜索）
+
+  /* 惩罚功能 */
+  rpc NewPunish(NewPunishReq) returns (NewPunishRes); // 新增惩罚（若同类型惩罚已存在，则续期）
+  rpc IncrPunishDuration (IncrPunishDurationReq) returns (IncrPunishDurationRes); // 续期惩罚
+  rpc DismissPunish (DismissPunishReq) returns (DismissPunishRes); // 解除惩罚
+  rpc PunishList (PunishListReq) returns (PunishListRes); // 惩罚列表（支持过滤）
+  rpc UserPunishLog (UserPunishLogReq) returns (UserPunishLogRes); // 单用户详细惩罚记录（暂不分页）
+
+  /* 用户管理 */
+  rpc ListUser(ListUserReq) returns (ListUserRes);  // 用户列表
+  rpc ListUserAPICallLog(ListUserAPICallLogReq) returns (ListUserAPICallLogRes); // 查看接口调用日志
+  rpc ListUserLastSignInLogs(ListUserLastSignInLogsReq) returns (ListUserLastSignInLogsRes); // 查看用户最近的登录记录
+
+  /* 审核相关 */
+  rpc ListReviewText(ListReviewTextReq) returns (ListReviewTextRes); // 获取文本审核列表
+  rpc ListReviewImage(ListReviewImageReq) returns (ListReviewImageRes); // 获取图片审核列表
+  rpc ListReviewVideo(ListReviewVideoReq) returns (ListReviewVideoRes); // 获取视频审核列表
+  rpc ListReviewAudio(ListReviewAudioReq) returns (ListReviewAudioRes); // 获取音频审核列表
+  rpc UpdateReviewStatus(UpdateReviewStatusReq) returns (UpdateReviewStatusRes); // 更新审核状态（统一）
+
+  /* 配置中心 */
+  rpc ConfigCenterAdd(ConfigCenterAddReq) returns (ConfigCenterAddRes); // 添加配置
+  rpc ConfigCenterList(ConfigCenterListReq) returns (ConfigCenterListRes); // 配置列表
+  rpc ConfigCenterUpdate(ConfigCenterUpdateReq) returns (ConfigCenterUpdateRes); // 更新配置
+  rpc ConfigCenterDelete(ConfigCenterDeleteReq) returns (ConfigCenterDeleteRes); // 删除配置
+
+  /* 开关中心 */
+  rpc SwitchCenterAdd(SwitchCenterAddReq) returns (SwitchCenterAddRes);
+  rpc SwitchCenterList(SwitchCenterListReq) returns (SwitchCenterListRes);
+  rpc SwitchCenterUpdate(SwitchCenterUpdateReq) returns (SwitchCenterUpdateRes);
+  rpc SwitchCenterDelete(SwitchCenterDeleteReq) returns (SwitchCenterDeleteRes);
+}

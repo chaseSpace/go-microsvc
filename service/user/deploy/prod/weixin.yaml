@@ -1,0 +1,8 @@
+# 用于微信登陆移动应用的配置
+wx_app:
+  appid: "wx1234567890"
+  app_secret: "1234567890"
+# 用于微信小程序登陆应用的配置
+wx_mini:
+  appid: "wx77ff849170d08f7f"
+  app_secret: "4ce59f360fe1b9beea5408f4749b6723"

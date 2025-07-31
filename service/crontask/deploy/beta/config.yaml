@@ -1,0 +1,11 @@
+# 此配置文件只需要定义单个服务的特定配置。
+# 全局配置以及在 项目根目录/deploy/$env/ 中配置。
+root:
+  svc: crontask
+  log_level: info
+
+kimi:
+  api_key: sk-IW0bAlCxIU3mPwpLYIUTzIXfnRemXkgFkScwEVkY1VolzLsz
+
+tongyi:
+  api_key: sk-04a356f1d43644dca89c659fe2070ac9

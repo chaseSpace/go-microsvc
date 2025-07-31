@@ -1,0 +1,16 @@
+syntax = "proto3";
+package svc.commander;
+option go_package = "microsvc/protocol/svc/commanderpb";
+
+//import "svc/commonpb/common.proto";
+
+
+message TestIntReq {
+}
+message TestIntRes {
+  string msg = 1;
+}
+
+service commanderInt {
+  rpc TestInt(TestIntReq) returns (TestIntRes);
+}

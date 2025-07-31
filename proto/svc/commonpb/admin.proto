@@ -1,0 +1,3 @@
+syntax = "proto3";
+package svc.common;
+option go_package = "microsvc/protocol/svc/commonpb";

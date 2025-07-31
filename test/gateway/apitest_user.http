@@ -1,0 +1,195 @@
+### ping
+GET http://{{domain}}/ping
+
+### userExt/SignInAll-miniprogram
+POST http://{{domain}}/forward/user/SignInAll
+Content-Type: application/json
+#Authorization: 注册接口 不需要鉴权
+
+{
+  "base": {
+    "app": "test_app",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 1
+  },
+  "type": 3,
+  "code": "小程序code"
+}
+
+
+### userExt/SignInAll-phone
+POST http://{{domain}}/forward/user/SignInAll
+Content-Type: application/json
+#Authorization: 注册接口 不需要鉴权
+
+{
+  "base": {
+    "app": "test_app",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 1
+  },
+  "type": 1,
+  "any_account": "86|18587904111",
+  "verify_code": "1111"
+}
+
+### userExt/SignUpAll-phone
+POST http://{{domain}}/forward/user/SignUpAll
+Content-Type: application/json
+#Authorization: 注册接口 不需要鉴权
+
+{
+  "base": {
+    "app": "test_app",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 1
+  },
+  "type": 1,
+  "any_account": "86|18587904111",
+  "verify_code": "1111",
+  "body": {
+    "nickname": "xxx",
+    "sex": 1,
+    "birthday": "2023-01-01"
+  }
+}
+
+### userExt/SignUpAll-email
+POST http://{{domain}}/forward/user/SignUpAll
+Content-Type: application/json
+#Authorization: 注册接口 不需要鉴权
+
+{
+  "base": {
+    "app": "test_app",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 2
+  },
+  "type": 10,
+  "any_account": "86@qq.com",
+  "verify_code": "1111",
+  "new_password": "ed11c51a49a95d5a109d56d6f8b9d126c73cbbfb",
+  "password": "ed11c51a49a95d5a109d56d6f8b9d126c73cbbfb",
+  "body": {
+    "nickname": "xxx",
+    "sex": 1,
+    "birthday": "2023-01-01",
+    "extra": {
+      "channel": "official"
+    }
+  }
+}
+
+
+### userExt/SignUpAll-miniprogram
+POST http://{{domain}}/forward/user/SignUpAll
+Content-Type: application/json
+#Authorization: 注册接口 不需要鉴权
+
+{
+  "base": {
+    "app": "test_app",
+    "app_version": "1.0.0"
+  },
+  "type": 1,
+  "code": "小程序code",
+  "body": {
+    "nickname": "xxx",
+    "sex": 1,
+    "birthday": "2023-01-01"
+  }
+}
+
+### userExt/SignUpAll-xxx
+POST http://{{domain}}/forward/user/SignUpAll
+Content-Type: application/json
+#Authorization: 注册接口 不需要鉴权
+
+{
+  "body": {
+    "birthday": "2000-01-01",
+    "nickname": "yonghu1",
+    "avatar": "2kjkljjffffff",
+    "sex": 1,
+    "extra": {
+      "channel": "official"
+    }
+  },
+  "base": {
+    "app_name": "cocktail-hack.pc",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 1,
+    "extension": {}
+  },
+  "type": 10,
+  "any_account": "983003643@qq.com",
+  "code": "",
+  "verify_code": "2222",
+  "password": "7c4a8d09ca3762af61e59520943dc26494f8941b"
+}
+
+
+### userExt/GetUser
+POST http://{{domain}}/forward/user/GetUserInfo
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "base": {
+    "app": "test_app",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 2
+  },
+  "uids": [
+  ]
+}
+
+### userExt/UpdateUserInfo
+POST http://{{domain}}/forward/user/UpdateUserInfo
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "base": {
+    "app": "test_app",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 1
+  },
+  "uid": 1,
+  "body": {
+    "update_nickname": true,
+    "data_nickname": "1"
+  }
+}
+
+### userExt/ResetPassword
+POST http://{{domain}}/forward/user/ResetPassword
+Content-Type: application/json
+
+{
+  "email": "983003643@qq.com",
+  "verify_code": "086577",
+  "new_password": "133bb92fc7d837517ebabab35c5af2ff9cb367d2",
+  "base": {
+    "app_name": "cocktail-hack.pc",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 1,
+    "extension": {}
+  }
+}

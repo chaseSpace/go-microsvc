@@ -1,0 +1,56 @@
+syntax = "proto3";
+package svc.currency;
+option go_package = "microsvc/protocol/svc/currencypb";
+
+import "svc/commonpb/common.proto";
+import "svc/currencypb/enum.proto";
+//import "svc/currencypb/int.proto";
+import "validator.proto";
+
+message GetGoldAccountReq {
+  common.BaseExtReq base = 1;
+}
+message GetGoldAccountRes {
+  int64 balance = 1;
+  int64 recharge_total = 2;
+}
+
+message GetGoldTxLogReq {
+  common.BaseExtReq base = 1;
+  currency.GoldTxType tx_type = 2; // 交易类型, 0表所有
+  string order_field = 3;
+  common.OrderType order_type = 4;
+  common.PageArgs page = 5  [(validator.field).required = true];
+  string year_month = 6; // 年月，格式为 yyyyMM （数据库为月表，只能按月查询）
+}
+message GetGoldTxLogRes {
+  repeated GoldTxLog list = 1;
+  int64 total = 2;
+}
+
+message GoldTxLog {
+  int64 uid = 1;
+  int64 delta = 2;
+  currency.GoldTxType tx_type = 3;
+  int64 created_at = 4; // unix timestamp
+}
+
+message TestGoldTxReq {
+  common.BaseExtReq base = 1;
+  int64 uid = 2;
+  int64 delta = 3;
+  GoldTxType tx_type = 4;
+  string remark = 5;
+}
+message TestGoldTxRes {
+  string tx_id = 1;
+}
+
+service currencyExt {
+  /* 金币(Gold)相关接口 */
+  rpc GetGoldAccount(GetGoldAccountReq) returns (GetGoldAccountRes);  // 获取金币账户余额
+  rpc GetGoldTxLog(GetGoldTxLogReq) returns (GetGoldTxLogRes);  // 获取个人交易记录
+
+  // 测试交易接口
+  rpc TestGoldTx(TestGoldTxReq) returns (TestGoldTxRes);
+}

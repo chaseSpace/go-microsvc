@@ -1,0 +1,65 @@
+syntax = "proto3";
+package svc.thirdparty;
+option go_package = "microsvc/protocol/svc/thirdpartypb";
+
+import "svc/commonpb/common.proto";
+import "svc/commonpb/thirdparty.proto";
+import "svc/thirdpartypb/common.proto";
+import "validator.proto";
+
+message VerifyEmailCodeReq {
+  common.BaseExtReq base = 1;
+  string input_email = 2 [(validator.field).required = true];
+  string input_code = 3 [(validator.field).required = true];
+  common.EmailCodeScene scene = 4 [(validator.field).enum = {not_in: [0]}];
+  bool delete_after_verify = 5; // 验证成功后删除验证码
+}
+message VerifyEmailCodeRes {
+  bool is_match = 1; // 是否正确
+}
+
+message OssUploadReq {
+  common.BaseExtReq base = 1;
+  bytes buf = 2; // 限制格式jpg/png 后端可能会检查
+  common.OSSUploadType type = 3; // 图片类型，如头像、主页背景等
+}
+
+message OssUploadRes {
+  string path = 1; // 相对路径
+  string url = 2; // 完整链接
+}
+
+message LocalUploadReq {
+  common.BaseExtReq base = 1;
+  string file_buf_base64 = 2 [(validator.field).string = {min_len: 1}]; // 不同biz_type又不同大小限制，最大20M
+  FileBizType biz_type = 3[(validator.field).enum = {not_in: [0], defined_only: true}];
+}
+message LocalUploadRes {
+  string path = 1;
+  string access_uri = 2; // 可访问地址
+}
+
+message SyncReviewImageExtReq {
+  string uri = 1;
+  ImageType type = 2;
+  ReviewParamsExt ext = 3;
+}
+
+message SyncReviewImageExtRes {
+  common.AIReviewStatus status = 1;
+  string message = 2; // 三方返回的描述
+}
+
+service thirdpartyExt {
+  /* 验证码(含60s等待逻辑) */
+  rpc VerifyEmailCode(VerifyEmailCodeReq) returns (VerifyEmailCodeRes); // 验证邮箱验证码是否正确
+
+  /* OSS */
+  rpc OssUpload(OssUploadReq) returns (OssUploadRes);
+
+  /* 本地公共服务 */
+  rpc LocalUpload(LocalUploadReq) returns (LocalUploadRes);
+
+  /* 多媒体审核 */
+  rpc SyncReviewImageExt(SyncReviewImageExtReq) returns (SyncReviewImageExtRes); // 同步审核图片
+}

@@ -1,0 +1,6 @@
+# 此配置文件只需要定义单个服务的特定配置。
+# 全局配置以及在 项目根目录/deploy/$env/ 中配置。
+root:
+  svc: gift
+  log_level: debug
+  disable_cache: true # 本地开发，禁用缓存功能（直读DB），免去缓存干扰问题

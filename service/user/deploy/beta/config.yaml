@@ -1,0 +1,21 @@
+# 存放user相关配置，db信息配置到根目录的deploy/
+root:
+  svc: user
+  log_level: debug
+  disable_cache: true # 本地开发，禁用缓存功能（直读DB），免去缓存干扰问题
+
+auth:
+  token_expiry: "7d"
+  # 存放user相关配置，db信息配置到根目录的deploy/
+#update_user_info_rate:
+#  nickname: # 两种时间权限指定方式，需同时满足才能更新
+#    duration_limit: "2s" # time.Duration
+#    date_range_limit: [ "2024-07-01 00:00:00", "2025-07-11 00:00:00" ]
+#    banned: false # 开关，true表示禁止更新
+#    max_history_len: 3 # 最大历史记录长度（redis list）
+
+open_sign_in_rate_limit: false
+open_sign_up_rate_limit: false
+
+default_assets:
+  avatar: uploads/FBT_Avatar/default/111.png

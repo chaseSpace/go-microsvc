@@ -1,0 +1,184 @@
+syntax = "proto3";
+package svc.user;
+option go_package = "microsvc/protocol/svc/userpb";
+
+import "svc/commonpb/common.proto";
+import "svc/commonpb/enum.proto";
+import "svc/commonpb/user.proto";
+import "svc/commonpb/thirdparty.proto";
+import "svc/userpb/common.proto";
+import "validator.proto";
+
+message GetUserInfoReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true]; // 每个外部接口Req都必须添加这个成员类型，grpc拦截器会做验证
+  repeated int64 uids = 2 [(validator.field) = {repeated : {unique: true}}];
+  bool get_caller = 3; // 是否返回caller自己的信息
+  bool populate_not_found = 4; // 未找到的uid是否返回填充好的对象（name：未知用户）
+}
+message GetUserInfoRes{
+  map<int64, common.User> umap = 1;
+  common.User caller = 2; // 由 get_caller 控制
+}
+
+message SignUpBody{
+  string birthday = 1; // 生日 yyyy-mm-dd
+  string nickname = 2 [(validator.field).string.max_len = 20];
+  string firstname = 3 [(validator.field).string.max_len = 15];
+  string lastname = 4 [(validator.field).string.max_len = 15];
+  string avatar = 5;
+  common.Sex sex = 6;
+  string email = 7 [(validator.field).string.max_len = 20];
+  SignUpExt extra = 20 [(validator.field).required = true]; // 用户基本信息以外的字段，如注册渠道等
+}
+
+message SignUpExt{
+  string channel = 1 [(validator.field) = {string: {in: [
+    "official" // 官方（与登录方式无关）
+  ]}}]; // 注册渠道
+}
+
+// 统一登录
+message SignInAllReq {
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  common.SignInType type = 2;
+  // 若是手机号方式，需要传入 areaCode|phone 形式的账号（若是三方OAuth登陆则空）
+  string any_account = 3 [(validator.field).required = true];
+  string code = 4; // 第三方code，部分登陆/注册方式才有，用于从三方服务器换取基本信息（如微信app/小程序/公众号/Google 提供的code）
+  string verify_code = 5; // 手机号/邮箱的验证码（手机验证码通过SendSmsCode接口获取），开发环境不验证
+  string password = 6; // 根据type决定是否需要传值
+}
+message SignInAllRes {
+  string token = 1; // 登陆成功用于后续访问服务器的token（未注册时为空）
+  int64 expiry = 2; // token有效期秒数，为0表示不过期（dev使用）
+  bool registered = 3; // 是否注册
+
+  string oauth_cache_key = 10; // 三方登录时查询到的账户信息缓存的key
+}
+
+message SignUpAllReq {
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  common.SignInType type = 2 [(validator.field).enum.defined_only = true];
+  // 与type对应，如type为1，any_account为手机号, areaCode|phone 形式的账号, 如 86|138xxxxxxxx
+  // - 若是OAuth登陆，则any_account为登陆接口返回的 oauth_cache_key
+  string any_account = 3 [(validator.field).required = true];
+  string code = 4;  // 第三方code，部分注册方式才有，用于从三方服务器换取基本信息（如微信app/小程序/公众号提供的code）
+  string verify_code = 5; // 手机号/邮箱的验证码（手机验证码通过SendSmsCode接口获取），开发环境随意传值
+  string password = 6; // 根据type决定是否需要传值，格式为 sha1(plain_text)，后端会检查长度
+  SignUpBody body = 10 [(validator.field).required = true];
+}
+
+message SignUpAllRes {
+  string token = 1; // 登陆成功用于后续访问服务器的token
+  int64 expiry = 2; // token有效期秒数
+}
+
+message SendSmsCodeOnUserReq {
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  common.SmsCodeScene scene = 2 [(validator.field).enum = {defined_only: true, not_in: [0]}];
+  string area_code = 3; // 手机区号，如86
+  string phone = 4 [(validator.field).required = true];
+  bool test_only = 5; // 测试环境true，实际不发短信，但仍可走验证流程（验证码123456）
+}
+message SendSmsCodeOnUserRes {
+}
+
+message SendEmailCodeOnUserReq {
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  common.EmailCodeScene scene = 2;
+  string email = 3 [(validator.field).required = true];
+  bool test_only = 4; // 测试环境true，实际不发送，但仍可走验证流程（验证码123456）
+}
+message SendEmailCodeOnUserRes {
+}
+
+message UpdateUserInfoReq {
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  repeated UpdateBody body_array = 3;
+}
+
+message UpdateUserInfoRes {}
+
+message ResetPasswordReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  string email = 2 [(validator.field).required = true];
+  string verify_code = 3 [(validator.field).string.len = 6]; // 验证码
+  string new_password = 4 [(validator.field).string.len = 40]; // 新密码（哈希）
+}
+message ResetPasswordRes{}
+
+message RecommendUser{
+  common.User user = 1;
+  bool has_greet = 2; // 是否打过招呼
+  repeated common.UserTag tags = 3; // 标签
+  common.UserCertify certify = 4; // 认证
+}
+
+message RecommendUserDetail{
+  common.User user = 1;
+  bool has_greet = 2; // 是否打过招呼
+  bool is_followed = 3; // 是否关注过
+
+  // 注意下面的字段当值为0、false、""、[]时，前端不展示
+  bool is_newcomer = 10; // 是否新人
+  string voice_url = 11; // 语音签名
+  common.EducationType education = 12; // 学历
+  int32 height = 13; // 身高:cm
+  int32 weight = 14; // 体重:kg
+  common.EmotionalType emotional = 15; // 情感状态：单身、恋爱中、已婚
+  common.YearIncomeType year_income = 16; // 年收入
+  string occupation = 17; // 职业
+  string hometown = 18; // 籍贯/家乡
+  common.LivingHouseType living_house = 19; // 居住情况
+  common.HouseBuyingType house_buying = 20; // 购房情况
+  common.CarBuyingType car_buying = 21; // 购车情况
+  string university = 22; // 毕业院校
+  repeated common.UserTag tags = 23; // 标签
+  common.UserCertify certify = 24; // 认证
+}
+
+message SameCityUsersReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 random_order_id = 2 [(validator.field).int64 = {in: [1000, 9999]}];// 在用户首次/主动刷新（第一页）列表时重置，翻页时保持不变，值范围1000-9999
+}
+message SameCityUsersRes{
+  repeated RecommendUser users = 1;
+}
+
+message NearbyUsersReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 random_order_id = 2 [(validator.field).int64 = {in: [1000, 9999]}];// 在用户首次/主动刷新（第一页）列表时重置，翻页时保持不变，值范围1000-9999
+}
+message NearbyUsersRes{
+  repeated RecommendUser users = 1;
+}
+
+message GetRecommendUserDetailReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 uid = 2;
+}
+message GetRecommendUserDetailRes{
+  RecommendUserDetail detail = 1;
+}
+
+message DoGreetReq{
+  common.BaseExtReq base = 1 [(validator.field).required = true];
+  int64 target_uid = 2;
+}
+message DoGreetRes{}
+
+// *Ext 是外部服务接口组，要鉴权
+service userExt {
+  rpc SignInAll(SignInAllReq) returns (SignInAllRes); // 统一登陆
+  rpc SignUpAll(SignUpAllReq) returns (SignUpAllRes); // 统一注册
+  rpc SendSmsCodeOnUser(SendSmsCodeOnUserReq) returns (SendSmsCodeOnUserRes);
+  rpc SendEmailCodeOnUser(SendEmailCodeOnUserReq) returns (SendEmailCodeOnUserRes); // user服务发送邮箱验证码（由于接口会在发送前执行特定逻辑，所以不让外部直接调用thirdParty接口）
+  rpc GetUserInfo(GetUserInfoReq) returns (GetUserInfoRes);
+  rpc UpdateUserInfo(UpdateUserInfoReq) returns (UpdateUserInfoRes); // （登录后）更新用户信息，含密码
+  rpc ResetPassword(ResetPasswordReq) returns (ResetPasswordRes); // （未登录）重置密码
+
+  /* 异性用户推荐 */
+  rpc SameCityUsers(SameCityUsersReq) returns (SameCityUsersRes); // 获取同城用户列表 TODO
+  rpc NearbyUsers(NearbyUsersReq) returns (NearbyUsersRes); // 获取附近用户列表 TODO
+  rpc GetRecommendUserDetail(GetRecommendUserDetailReq) returns (GetRecommendUserDetailRes); // 获取推荐用户详情 TODO
+  rpc DoGreet(DoGreetReq) returns (DoGreetRes); // 打招呼 TODO
+}

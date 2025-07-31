@@ -1,0 +1,228 @@
+syntax = "proto3";
+package svc.common;
+option go_package = "microsvc/protocol/svc/commonpb";
+
+enum Sex {
+  Unknown = 0;
+  Male = 1;
+  Female = 2;
+}
+
+enum SignInType {
+  SIT_None = 0;
+  SIT_PASSWORD = 1; // 账号密码
+  SIT_PHONE = 2; // 手机号+验证码
+  //https://developers.weixin.qq.com/doc/oplatform/Mobile_App/WeChat_Login/Development_Guide.html
+  SIT_WX_APP = 3; // 微信APP登录
+  //https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/login.html
+  SIT_WX_MINI = 4; // 微信小程序登录
+  SIT_EMAIL = 10; // 邮箱+密码
+
+  SIT_THIRD_GOOGLE = 20; // 三方登录：Google
+  SIT_THIRD_GITHUB = 21; // 三方登录：GitHub
+}
+
+enum SignInPlatform {
+  SIP_None = 0;
+  SIP_WxMini = 1;
+  SIP_APP = 2;
+  SIP_PC = 3;
+  SIP_H5 = 4;
+}
+
+enum SignInSystem{
+  SIS_None = 0;
+  SIS_Android = 1;
+  SIS_IOS = 2;
+  SIS_Windows = 3;
+  SIS_MacOS = 4;
+  SIS_Linux = 5;
+  SIS_Other = 6; // 未知
+}
+
+enum Lang {
+  CL_None = 0;
+  CL_CN = 1;  // 中文
+  CL_EN = 2;  // 英语
+  CL_ES = 3;  // 西班牙语
+  CL_FR = 4;  // 法语
+  CL_DE = 5;  // 德语
+  CL_JA = 6;  // 日语
+  CL_KO = 7;  // 韩语
+  CL_RU = 8;  // 俄语
+  CL_IT = 9;  // 意大利语
+}
+
+enum SwitchValue {
+  ST_Off = 0;
+  ST_On = 1;
+  // 代码中扩展更多值。。
+}
+
+enum ReviewStatus{
+  RS_Init = 0;
+  RS_Pending = 1; // 等待审核中（一般是等待AI审核）
+  RS_AIPass = 2; // AI审核通过
+  RS_AIReject = 3; // AI审核拒绝
+  RS_Manual = 4; // 需要人工审核
+  RS_ManualPass = 5; // 人工审核通过
+  RS_ManualReject = 6; // 人工审核拒绝
+}
+
+enum ReviewType{
+  RT_None = 0;
+  RT_Text = 1;
+  RT_Image = 2;
+  RT_Audio = 3;
+  RT_Video = 4;
+}
+
+// 业务类型，通用
+enum BizType{
+  RBT_None = 0;
+  RBT_Moment = 1;
+  RBT_Nickname = 2; // 用户昵称
+  RBT_Firstname = 3;
+  RBT_Lastname = 4;
+  RBT_UserDesc = 5; // 用户简介
+  RBT_Album = 6; // 相册
+  RBT_Avatar = 7; // 头像
+
+  RBT_WineReview = 20; // 酒评
+}
+
+// 服务器推送消息类型
+enum PushMsgType {
+  PMT_NONE = 0;
+  PMT_ErrorMsg = 1;
+  PMT_KickOffline = 2; // 踢下线
+}
+
+// 客户端上报消息类型
+enum ReportMsgType {
+  RMT_NONE = 0;
+  RMT_TEST = 1;
+}
+
+// 惩罚类型
+enum PunishType {
+  PT_None = 0;
+  PT_UpdateProfile = 1; // 禁更新资料
+  PT_Chat = 2; // 禁言
+  PT_Consume = 3; // 禁消费
+  PT_SignIn = 4; // 禁登录
+  PT_Ban = 5; // 封号
+}
+
+// 惩罚状态
+enum PunishState {
+  PS_None = 0;
+  PS_InProgress = 1; // 生效中
+  PS_Dismissed = 2; // 人工解除
+  PS_NaturalEnd = 3; // 自然结束（DB不会有此状态数据，查询时自动设置）
+}
+
+// 惩罚操作类型
+enum PunishOpType {
+  POT_None = 0;
+  POT_New = 1; // 新增惩罚
+  POT_IncrDuration = 2; // 增加惩罚时长
+  POT_Dismiss = 3; // 解除惩罚
+}
+
+enum UserTagType {
+  UTT_None = 0;
+  UTT_Age = 1; // 年龄
+  UTT_Marriage = 2; // 婚姻状况
+  UTT_Education = 3; // 学历
+  UTT_Occupation = 4; // 职业
+  UTT_Hobby = 5; // 兴趣爱好
+  UTT_Height = 6; // 身高
+  UTT_Weight = 7; // 体重
+  UTT_BodyType = 8; // 体型：苗条|微胖|标准|大长腿|高挑（用户自选）
+  UTT_City = 9; // 所在城市
+  UTT_YearIncome = 10; // 年收入：5万-10万
+  UTT_HouseCar = 11; // 房车：有房|有车|有房有车
+  UTT_University = 12; // 大学名称
+  UTT_Hometown = 13; // 家乡
+}
+
+enum EducationType {
+  ET_None = 0;
+  ET_Middle = 1; // 初中
+  ET_High = 2; // 高中
+  ET_Vocational = 3; // 职高
+  ET_JuniorCollege = 4; // 大专
+  ET_Undergraduate = 5; // 本科
+  ET_DoubleDegree = 6; // 双学士
+  ET_Master = 7; // 硕士
+  ET_PhD = 8; // 博士
+}
+
+enum EmotionalType {
+  ETX_None = 0;
+  ETX_Single = 1; // 单身
+  ETX_Married = 2; // 已婚
+  ETX_Divorced = 3; // 离异
+  ETX_Widowed = 4; // 丧偶
+}
+
+enum YearIncomeType {
+  YIT_None = 0;
+  YIT_LessThan5w = 1;
+  YIT_5wTo10w = 2;
+  YIT_10wTo20w = 3;
+  YIT_20wTo30w = 4;
+  YIT_30wTo50w = 5;
+  YIT_50wTo100w = 6;
+  YIT_GreatThan100w = 7;
+}
+
+// 居住情况
+enum LivingHouseType{
+  LHT_None = 0;
+  LHT_SelfBuy = 1; // 自购住房
+  LHT_Rent = 2; // 租房自住
+  LHT_RentWithOther = 3; // 与人合租
+  LHT_Hostel = 4; // 住宿舍
+  LHT_WithParents = 5; // 与父母同住
+}
+
+// 购房情况
+enum HouseBuyingType{
+  HBT_None = 0;
+  HBT_Bought = 1; // 已购房
+  HBT_NotYet = 2; // 暂未购买
+  HBT_Planning = 3; // 计划购房中
+}
+
+// 购车情况
+enum CarBuyingType{
+  CBT_None = 0;
+  CBT_NotYet = 1; // 暂未购车
+  CBT_Planning = 2; // 计划购车中
+  CBT_BoughtLv1 = 3; // 已购车（经济型）
+  CBT_BoughtLv2 = 4; // 已购车（中档）
+  CBT_BoughtLv3 = 5; // 已购车（豪华型）
+}
+
+// 货币
+enum CurrencyType {
+  CT_All = 0; // 全部
+  CT_CNY = 1; // 人民币 ￥
+  CT_USD = 2; // 美元 $
+  CT_None = 50; // 其他 ?
+}
+
+// 点赞类型
+enum LikeTargetType {
+  LTT_None = 0;
+  LTT_WineReview = 1;
+}
+
+// 酒评状态
+enum WineReviewStatus {
+  WRS_Pending = 0; // 审核中
+  WRS_Pass = 1; // 审核通过
+  WRS_Reject = 2; // 审核拒绝
+}

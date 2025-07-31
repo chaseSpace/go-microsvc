@@ -1,0 +1,18 @@
+syntax = "proto3";
+package svc.mqconsumer;
+option go_package = "microsvc/protocol/svc/mqconsumerpb";
+
+import "svc/commonpb/common.proto";
+//import "svc/commonpb/const.proto";
+//
+
+message TestReq {
+  common.BaseExtReq base = 1;
+}
+message TestRes {
+  string msg = 1;
+}
+
+service mqConsumerExt {
+  rpc Test(TestReq) returns (TestRes);
+}

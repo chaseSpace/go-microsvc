@@ -1,0 +1,160 @@
+syntax = "proto3";
+package svc.friend;
+option go_package = "microsvc/protocol/svc/friendpb";
+
+import "svc/commonpb/common.proto";
+import "svc/friendpb/const.proto";
+import "svc/commonpb/user.proto";
+import "validator.proto";
+
+message FriendListReq {
+  common.BaseExtReq base = 1;
+  string order_field = 2;  // 排序字段
+  common.OrderType order_type = 3; // 排序方式
+  common.PageArgs page = 4  [(validator.field).required = true]; // 分页
+}
+
+message FriendListRes {
+  repeated Friend list = 1;
+  int64 total = 2;
+}
+
+message Friend {
+  common.User user = 1;
+  int64 created_at_ts = 3; // unix timestamp
+  string created_at_str = 2; // yyyy-mm-dd hh:mm:ss debug辅助
+  int64 intimacy = 4; // 亲密度
+}
+
+message FriendOnewayListReq {
+  common.BaseExtReq base = 1;
+  string order_field = 2;  // 排序字段
+  common.OrderType order_type = 3; // 排序方式
+  common.PageArgs page = 4  [(validator.field).required = true]; // 分页
+  bool is_follow = 5; // 关注/粉丝
+}
+message FriendOnewayListRes {
+  repeated Friend list = 1;
+  int64 total = 2;
+}
+
+message FollowOneReq {
+  common.BaseExtReq base = 1;
+  int64 target_uid = 2; // 被操作者
+  bool is_follow = 3; // （取消）关注
+}
+
+message FollowOneRes {
+  bool mutual = 1; // 形成互关
+}
+
+message SearchFriendListReq {
+  common.BaseExtReq base = 1;
+  string keyword = 2; // 支持ID和名字
+  string order_field = 3;  // 排序字段
+  common.OrderType order_type = 4; // 排序方式
+}
+message SearchFriendListRes {
+  repeated Friend list = 1;
+}
+
+message SearchFriendOnewayListReq {
+  common.BaseExtReq base = 1;
+  string keyword = 2;
+  string order_field = 3;  // 排序字段
+  common.OrderType order_type = 4; // 排序方式，limit由后端控制
+  bool is_follow = 5;
+}
+
+message SearchFriendOnewayListRes {
+  repeated Friend list = 1;
+}
+
+message BlockOneReq {
+  common.BaseExtReq base = 1;
+  int64 target_uid = 2; // 被操作者
+  bool is_block = 3; // （取消）拉黑
+}
+message BlockOneRes {}
+
+message BlockListReq {
+  common.BaseExtReq base = 1;
+  common.PageArgs page = 2  [(validator.field).required = true]; // 分页
+}
+message BlockListRes {
+  repeated BlockUser list = 1;
+  int64 total = 2;
+}
+
+message BlockUser {
+  common.User user = 1;
+  int64 created_at_ts = 3; // unix timestamp
+  string created_at_str = 2; // yyyy-mm-dd hh:mm:ss debug辅助
+}
+
+message RelationWithOneReq {
+  common.BaseExtReq base = 1;
+  int64 target_uid = 2; // 被操作者
+}
+message RelationWithOneRes {
+  RelationType relation = 1;
+}
+
+message SaveVisitorReq{
+  common.BaseExtReq base = 1;
+  int64 target_uid = 2; // 被访问者
+  int64 seconds = 4; // 访问时长，秒，后端会处理过长的时间（前端在用户退出访问页面时上报）；
+}
+message SaveVisitorRes{}
+
+message VisitorListReq {
+  common.BaseExtReq base = 1;
+  common.PageArgs page = 2  [(validator.field).required = true];
+}
+message VisitorListRes {
+  repeated Visitor list = 1;
+  int64 total = 2;
+  // 以下访问次数字段仅在请求第一页时返回
+  // delta 为今日新增
+  common.CounterInt64 visitors_total = 3; // 全部访问次数 以及今日新增
+  common.CounterInt64 visitors_repeated = 4; // 重复访问次数 以及今日新增
+}
+message Visitor{
+  common.User user = 1;
+  int64 created_at_ts = 2;
+  string created_at_str = 3;
+  int64 date = 4; // YYYY-MM-DD
+  string desc = 5; // 文案描述，如：“她忍不住看了你 ? 次”
+  repeated string replace_elem = 6; // 替换元素，[3]，前端需要替换到 desc 中 ? 的位置，并对其渲染颜色
+}
+
+service friendExt {
+  /* 好友功能 */
+
+  // 互关好友列表
+  rpc FriendList(FriendListReq) returns (FriendListRes);
+  // 单向关系列表（关注、粉丝）
+  rpc FriendOnewayList(FriendOnewayListReq) returns (FriendOnewayListRes);
+  // （取消）关注
+  rpc FollowOne(FollowOneReq) returns (FollowOneRes);
+  // 搜索好友列表
+  rpc SearchFriendList(SearchFriendListReq) returns (SearchFriendListRes);
+  // 搜索单边关系列表（关注、粉丝）
+  rpc SearchFriendOnewayList(SearchFriendOnewayListReq) returns (SearchFriendOnewayListRes);
+
+  /* 拉黑功能 */
+
+  // （取消）拉黑某人
+  rpc BlockOne(BlockOneReq) returns (BlockOneRes);
+  // 拉黑列表
+  rpc BlockList(BlockListReq) returns (BlockListRes);
+  // 与某人的关系（一个通用接口，返回 好友、关注、粉丝、拉黑、被拉黑、互相拉黑）
+  rpc RelationWithOne(RelationWithOneReq) returns (RelationWithOneRes);
+
+  /* 访客功能 */
+
+  // 保存访客记录（前端在进入他人主页后调用）
+  rpc SaveVisitor(SaveVisitorReq) returns (SaveVisitorRes);
+  // 访客列表（带缓存）
+  rpc VisitorList(VisitorListReq) returns (VisitorListRes);
+}

@@ -1,0 +1,80 @@
+syntax = "proto3";
+package svc.gift;
+option go_package = "microsvc/protocol/svc/giftpb";
+
+import "svc/commonpb/common.proto";
+import "svc/giftpb/enum.proto";
+import "validator.proto";
+
+
+message GetGiftListReq {
+  common.BaseExtReq base = 1;
+  GiftScene scene = 2;
+}
+
+message GetGiftListRes {
+  repeated Gift list = 1;
+}
+
+message Gift{
+  int64 id = 1;
+  string name = 2;
+  int64 price = 3;
+  GiftType type = 4;
+  string icon = 5;
+  int64 amount = 6; // 礼物配置时忽略
+  repeated GiftScene supported_scenes = 7;
+}
+
+message SendGiftToOneReq {
+  common.BaseExtReq base = 1;
+  int64 to_uid = 2;
+  int64 gift_id = 3;
+  int64 amount = 4;
+  TxType tx_type = 5;
+  GiftScene tx_scene = 6;
+}
+
+message SendGiftToOneRes {}
+
+message GetMyGiftTxLogReq {
+  common.BaseExtReq base = 1;
+  string order_field = 2; // 支持 created_at | price | total_value
+  common.OrderType order_type = 3;
+  common.PageArgs page = 4  [(validator.field).required = true];
+  GiftScene scene = 5; // 0表示所有
+  string year_month = 6; // 支持年月筛选: 202401，为空表示最新
+}
+message GetMyGiftTxLogRes {
+  repeated GiftPersonalTxLog list = 1;
+  int64 total = 2;
+}
+
+// 礼物交易（e.g. 我在a场景赠送给b了c个d礼物）
+message GiftPersonalTxLog {
+  GiftTxLogBase base =1;
+  int64 related_uid = 2;
+  int64 balance = 3;
+  FirstPersonalTxType tx_type = 4;
+}
+
+message GiftTxLogBase {
+  string tx_id = 1;
+  int64 gift_id = 2;
+  string gift_name = 3;
+  int64 price = 4;
+  int64 amount = 5;
+  int64 total_value = 6;
+  GiftScene tx_scene = 7;
+  GiftType gift_type = 8;
+  int64 created_at = 12;
+}
+
+service giftExt {
+  // 获取全部礼物列表（已上架、含账户礼物余量）
+  rpc GetGiftList(GetGiftListReq) returns (GetGiftListRes);
+  // 赠送礼物（给个人）
+  rpc SendGiftToOne(SendGiftToOneReq) returns (SendGiftToOneRes);
+  // 我的礼物流水
+  rpc GetMyGiftTxLog(GetMyGiftTxLogReq) returns (GetMyGiftTxLogRes);
+}

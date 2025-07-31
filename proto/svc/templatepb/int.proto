@@ -1,0 +1,16 @@
+syntax = "proto3";
+package svc.template;
+option go_package = "microsvc/protocol/svc/templatepb";
+
+//import "svc/commonpb/common.proto";
+
+
+message TestIntReq {
+}
+message TestIntRes {
+  string msg = 1;
+}
+
+service templateInt {
+  rpc TestInt(TestIntReq) returns (TestIntRes);
+}

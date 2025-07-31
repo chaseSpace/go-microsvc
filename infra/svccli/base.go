@@ -1,0 +1,86 @@
+//go:build !k8s
+
+package svccli
+
+import (
+	"microsvc/deploy"
+	"microsvc/enums"
+	"microsvc/infra/sd"
+	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/simple_sd"
+	"microsvc/infra/xgrpc"
+	"microsvc/pkg/xlog"
+	"microsvc/util/graceful"
+	"sync"
+)
+
+/*
+如果使用DNS名称连接服务，则不需要调用Init函数
+*/
+
+var defaultSD abstract.ServiceDiscovery
+
+func SetDefaultSD(sd abstract.ServiceDiscovery) {
+	defaultSD = sd
+}
+
+func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
+	graceful.AddStopFunc(Stop)
+
+	return func(cc *deploy.XConfig, onEnd func(must bool, err error)) {
+		var err error
+		//if defaultSD == nil {
+		//	if cc.Env.IsDev() {
+		//		defaultSD = simple_sd.New(cc.SimpleSdHttpPort)
+		//	} else {
+		//		defaultSD, err = consul.New()
+		//		if err != nil {
+		//			xlog.Error("svccli: NewConsulSD failed", zap.Error(err))
+		//		}
+		//	}
+		//}
+		// todo 暂时使用 simple_sd
+		defaultSD = simple_sd.New(cc.SimpleSdHttpPort)
+		onEnd(must, err)
+	}
+}
+
+type RpcClient struct {
+	once      sync.Once
+	svc       enums.Svc
+	inst      *sd.InstanceImpl
+	genClient sd.GenClient
+}
+
+func NewCli(svc enums.Svc, gc sd.GenClient) *RpcClient {
+	cli := &RpcClient{svc: svc, genClient: gc}
+	return cli
+}
+
+// Getter returns gRPC Server Client
+func (c *RpcClient) Getter() any {
+	c.once.Do(func() {
+		c.inst = sd.NewInstance(c.svc.Name(), c.genClient, defaultSD)
+		initializedSvcCli = append(initializedSvcCli, c)
+	})
+	v, err := c.inst.GetSingleConnWrapper()
+	if err == nil {
+		return v.RpcClient
+	}
+	return c.genClient(xgrpc.NewInvalidGRPCConn(c.svc.Name()))
+}
+
+func (c *RpcClient) Stop() {
+	if c.inst != nil {
+		c.inst.Stop()
+	}
+}
+
+var initializedSvcCli []*RpcClient
+
+func Stop() {
+	for _, svcCli := range initializedSvcCli {
+		svcCli.Stop()
+	}
+	xlog.Debug("svccli: resource released...")
+}

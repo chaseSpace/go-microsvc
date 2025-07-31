@@ -1,0 +1,18 @@
+syntax = "proto3";
+package svc.template;
+option go_package = "microsvc/protocol/svc/templatepb";
+
+import "svc/commonpb/common.proto";
+//import "svc/commonpb/const.proto";
+//
+
+message TestReq {
+  common.BaseExtReq base = 1;
+}
+message TestRes {
+  string msg = 1;
+}
+
+service templateExt {
+  rpc Test(TestReq) returns (TestRes);
+}

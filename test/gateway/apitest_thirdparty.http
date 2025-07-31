@@ -1,0 +1,37 @@
+### ThirdpartyExt/SendSmsCode
+POST http://{{domain}}/forward/thirdparty/SendSmsCode
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "base": {
+    "app_name": "cocktail-hack.pc",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 1,
+    "extension": {}
+  },
+  "area_code": "86",
+  "phone": "86|18587904111",
+  "scent": 1
+}
+
+### ThirdpartyExt/SendEmailCode
+POST http://{{domain}}/forward/thirdparty/SendEmailCode
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "email": "98300643@qq.com",
+  "scene": 2,
+  "test_only": false,
+  "base": {
+    "app_name": "cocktail-hack.pc",
+    "app_version": "1.0.0",
+    "platform": 1,
+    "system": 1,
+    "language": 2,
+    "extension": {}
+  }
+}
