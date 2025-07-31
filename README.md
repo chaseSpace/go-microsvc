@@ -79,8 +79,8 @@ TODO
 ## 3. 如何使用
 
 ```shell
-git clone --recurse-submodules https://github.com/chaseSpace/go-microsvc-template.git
-cd go-microsvc-template/
+git clone --recurse-submodules https://github.com/chaseSpace/go-microsvc.git
+cd go-microsvc/
 go mod download
 
 # 启动服务
