@@ -92,7 +92,7 @@ go run service/gateway/main.go
 # 调用gateway，参考 根/test/gateway/apitest.http
 ```
 
-本项目已支持在K8s环境中部署，请参考[在K8s上部署此项目](docs/开发必看/deploy_on_k8s.md)。
+本项目已支持在K8s环境中部署，请参考[在K8s上部署此项目](docs/开发必看/基于k8s的部署)。
 
 ## 4. 本地（dev）环境启动微服务的原理
 

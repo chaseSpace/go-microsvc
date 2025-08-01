@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"microsvc/deploy"
+	"microsvc/enums"
 	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/consul"
+	"microsvc/infra/sd/mdns"
 	"microsvc/infra/sd/simple_sd"
 	"microsvc/pkg/xlog"
 	"microsvc/util"
@@ -23,6 +26,7 @@ import (
 var registeredServices []string
 var gCtx, cancelGCtx = context.WithCancel(context.TODO())
 
+const Impl = "consul" // 统一指定所有服务使用的注册发现组件
 const logPrefix = "sd: "
 
 var rootSD abstract.ServiceDiscovery
@@ -32,34 +36,34 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 
 	return func(cc *deploy.XConfig, finished func(must bool, err error)) {
 		var err error
-		if cc.SimpleSdHttpPort > 0 {
-			rootSD = simple_sd.New(cc.SimpleSdHttpPort)
-			//tryRunSimpleSdServer(cc.SimpleSdHttpPort)
-			go startSdDaemon(gCtx)
-		} else {
-			err = fmt.Errorf("invalid cc.SimpleSdHttpPort: %d", cc.SimpleSdHttpPort)
-		}
 
-		// take consul or etcd(not have yet) in your like
-		//rootSD, err = consul.New()
-		//if err != nil {
-		//	xlog.Error(logPrefix+"New failed", zap.Error(err))
-		//}
+		switch Impl {
+		case "simple_sd":
+			if cc.SimpleSdHttpPort > 0 {
+				if cc.Svc == enums.SvcGateway {
+					mustStartSimpleSdServer(cc.SimpleSdHttpPort)
+				}
+				rootSD = simple_sd.New(cc.SimpleSdHttpPort)
+				//tryRunSimpleSdServer(cc.SimpleSdHttpPort)
+				go startSdDaemon(gCtx)
+			} else {
+				err = fmt.Errorf("invalid cc.SimpleSdHttpPort: %d", cc.SimpleSdHttpPort)
+			}
+		case "consul":
+			rootSD, err = consul.New(cc.ServiceDiscovery.Consul.Address)
+		case "mdns": // 仅支持mac
+			rootSD = mdns.New()
+		default:
+			err = fmt.Errorf("invalid sd Impl: %s", Impl)
+		}
 		finished(must, err)
 	}
 }
 
-func InitSimpleSdServer() func(*deploy.XConfig, func(must bool, err error)) {
-	return func(cc *deploy.XConfig, finished func(must bool, err error)) {
-		mustStartSimpleSdServer(cc.SimpleSdHttpPort)
-	}
-}
-
 // MustRegister 执行注册服务，失败则panic
-// 如果使用DNS名称链接服务，则不需要注册
 func MustRegister(reg ...deploy.RegisterSvc) {
-	selfIp := "127.0.0.1"
-	if !deploy.XConf.Env.IsDev() {
+	selfIp := deploy.XConf.ServiceDiscovery.FixedSvcIp
+	if selfIp == "" {
 		localIps, err := uip.GetLocalPrivateIPs(true, "")
 		if err != nil || len(localIps) == 0 {
 			xlog.Panic(logPrefix+"GetLocalPrivateIPs failed", zap.Error(err))
@@ -90,14 +94,7 @@ func MustRegister(reg ...deploy.RegisterSvc) {
 
 func Stop() {
 	cancelGCtx()
-	for _, s := range registeredServices {
-		err := rootSD.Deregister(s)
-		if err != nil {
-			xlog.Error(logPrefix+"deregister fail", zap.String("sd-name", rootSD.Name()), zap.Error(err), zap.String("svc", s))
-		} else {
-			xlog.Info(logPrefix+"deregister success", zap.String("sd-name", rootSD.Name()), zap.String("svc", s))
-		}
-	}
+	rootSD.Stop()
 }
 
 // startSdDaemon automatically reconnect the service to the registry center in case of service

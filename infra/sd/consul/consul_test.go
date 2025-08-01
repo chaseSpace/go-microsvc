@@ -6,73 +6,53 @@ import (
 	"time"
 )
 
-func TestNewConsulSD(t *testing.T) {
-	// 前提：在本机启动consul进程
-	sd, err := New()
+func TestConsulSD(t *testing.T) {
+	sd, err := New("127.0.0.1:8500")
 	if err != nil {
-		t.Fatalf("New %v", err)
+		t.Fatalf("New: %v", err)
 	}
-	svc := "user"
-	addr := "127.0.0.1"
-	port := 8500 // 使用consul的端口
-	err = sd.Register(svc, addr, port, nil)
-	if err != nil {
-		t.Fatalf("Register %v", err)
-	}
-	//return
-	// 首次查询 不阻塞 所以不会超时
-	ctx, _ := context.WithTimeout(context.TODO(), time.Second*3)
-	list, err := sd.Discover(ctx, svc, false)
-	if err != nil {
-		t.Fatalf("discover %v", err)
-	}
-	//time.Sleep(time.Second) // consul delay
-	if len(list) == 0 {
-		t.Fatalf("len(list) == 0")
-	}
-	if list[0].Host != addr && list[0].Port != port {
-		t.Fatalf("unexpected ret:%+v", list)
-	}
-	//return
-	err = sd.Deregister(svc)
-	if err != nil {
-		t.Fatalf("Deregister %v", err)
-	}
-	list, err = sd.Discover(ctx, svc, false)
-	if err != nil {
-		t.Fatalf("discover %v", err)
-	}
-	if len(list) != 0 {
-		t.Fatalf("len(list) != 0")
-	}
-	//now := time.Now()
-	// 观察多次查询的阻塞时间是否符合预期
-	// 第一次3s但返回超时err，第二次和第三次 1min (Discover方法内部设置的)
+	t.Cleanup(func() { sd.Stop() })
 
-	//firstDur := 3
-	//subsequentDur := 60
-	//for i := 0; i < 3; i++ {
-	//	if i == 0 {
-	//		ctx, _ = context.WithTimeout(context.TODO(), time.Second*3)
-	//	} else {
-	//		ctx = context.TODO()
-	//	}
-	//	list, err = abstract.Discover(ctx, svc)
-	//	dur := int(time.Now().Sub(now).Seconds())
-	//	if i == 0 {
-	//		if err != context.DeadlineExceeded || dur != firstDur || len(list) != 0 {
-	//			t.Errorf("no.%v Discover in for loop， unexpected result, err:%v dur:%ds", i, err, dur)
-	//			now = time.Now()
-	//			continue
-	//		}
-	//	} else {
-	//		if err != nil || dur != subsequentDur || len(list) != 1 {
-	//			t.Errorf("no.%v Discover in for loop， unexpected result, err:%v dur:%ds, list:%+v", i, err, dur, list)
-	//			now = time.Now()
-	//			continue
-	//		}
-	//	}
-	//	now = time.Now()
-	//}
+	serviceName := "consul-svc5"
+	host := "127.0.0.1"
+	port := 8500
+	t.Run("Register", func(t *testing.T) {
+		if err := sd.Register(serviceName, host, port, nil); err != nil {
+			t.Fatalf("Register: %v", err)
+		}
+	})
 
+	time.Sleep(time.Second * 5) // 等待consul检测状态，才能Discovery
+	t.Run("DiscoverAfterRegister", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
+		defer cancel()
+
+		list, err := sd.Discover(ctx, serviceName, false)
+		if err != nil {
+			t.Fatalf("Discover: %v", err)
+		}
+		if len(list) == 0 {
+			t.Fatal("expected at least 1 instance")
+		}
+		t.Logf("instances: %+v", list)
+	})
+
+	t.Run("Deregister", func(t *testing.T) {
+		if err := sd.Deregister(serviceName); err != nil {
+			t.Fatalf("Deregister: %v", err)
+		}
+	})
+
+	t.Run("DiscoverAfterDeregister", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
+		defer cancel()
+
+		list, err := sd.Discover(ctx, serviceName, false)
+		if err != nil {
+			t.Fatalf("Discover: %v", err)
+		}
+		if len(list) != 0 {
+			t.Fatalf("expected 0 instances, got %d", len(list))
+		}
+	})
 }

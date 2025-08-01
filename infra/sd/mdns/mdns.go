@@ -164,3 +164,8 @@ func (m *Mdns) updateCache(serviceName string, instances []abstract.ServiceInsta
 
 	return cache, changed || len(instances) != len(cache)
 }
+
+func (m *Mdns) Stop() {
+	//TODO implement me
+	panic("implement me")
+}

@@ -11,6 +11,7 @@ type ServiceDiscovery interface {
 	Deregister(service string) error
 	Discover(ctx context.Context, service string, block bool) ([]ServiceInstance, error)
 	HealthCheck(ctx context.Context, service string) error
+	Stop()
 }
 
 // ServiceInstance 表示注册的单个实例

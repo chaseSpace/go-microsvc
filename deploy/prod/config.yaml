@@ -60,6 +60,11 @@ redis:
     addr: localhost:6379
     password: some_pass
 
+service_discovery:
+  fixed_svc_host:
+  consul:
+    address:
+
 mq_config:
   redis:
     meta:

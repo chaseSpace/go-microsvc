@@ -33,6 +33,8 @@ type XConfig struct {
 	GRPCPort int `mapstructure:"grpc_port"`
 	HTTPPort int `mapstructure:"http_port"`
 
+	ServiceDiscovery `mapstructure:"service_discovery"`
+
 	// 开启api限流
 	OpenAPIRateLimit bool `mapstructure:"open_api_rate_limit"`
 
@@ -58,6 +60,13 @@ type XConfig struct {
 
 	// 接管svc的配置
 	svcConf SvcConfImpl
+}
+
+type ServiceDiscovery struct {
+	FixedSvcIp string `mapstructure:"fixed_svc_ip"`
+	Consul     struct {
+		Address string `mapstructure:"address"`
+	} `mapstructure:"consul"`
 }
 
 type GRPCConfig struct {

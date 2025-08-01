@@ -60,6 +60,14 @@ redis:
     addr: localhost:6379
     password: 123
 
+service_discovery:
+  # 若使用docker本地部署sd组件，则需要指定 fixed_svc_host，这个地址一般是容器与宿主机通信网络的网关
+  # mac较特殊，固定使用`host.docker.internal`
+  # windows 或 linux 使用：172.17.0.1 （默认docker网络网关）
+  fixed_svc_host: host.docker.internal
+  consul:
+    address: localhost:8500
+
 mq_config:
   redis:
     meta:

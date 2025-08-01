@@ -3,10 +3,13 @@
 package svccli
 
 import (
+	"fmt"
 	"microsvc/deploy"
 	"microsvc/enums"
 	"microsvc/infra/sd"
 	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/consul"
+	"microsvc/infra/sd/mdns"
 	"microsvc/infra/sd/simple_sd"
 	"microsvc/infra/xgrpc"
 	"microsvc/pkg/xlog"
@@ -18,10 +21,12 @@ import (
 如果使用DNS名称连接服务，则不需要调用Init函数
 */
 
-var defaultSD abstract.ServiceDiscovery
+const impl = sd.Impl
+
+var rootSD abstract.ServiceDiscovery
 
 func SetDefaultSD(sd abstract.ServiceDiscovery) {
-	defaultSD = sd
+	rootSD = sd
 }
 
 func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
@@ -29,18 +34,18 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 
 	return func(cc *deploy.XConfig, onEnd func(must bool, err error)) {
 		var err error
-		//if defaultSD == nil {
-		//	if cc.Env.IsDev() {
-		//		defaultSD = simple_sd.New(cc.SimpleSdHttpPort)
-		//	} else {
-		//		defaultSD, err = consul.New()
-		//		if err != nil {
-		//			xlog.Error("svccli: NewConsulSD failed", zap.Error(err))
-		//		}
-		//	}
-		//}
-		// todo 暂时使用 simple_sd
-		defaultSD = simple_sd.New(cc.SimpleSdHttpPort)
+
+		switch impl {
+		case "simple_sd":
+			rootSD = simple_sd.New(cc.SimpleSdHttpPort)
+		case "consul":
+			rootSD, err = consul.New(cc.ServiceDiscovery.Consul.Address)
+		case "mdns":
+			rootSD = mdns.New()
+		default:
+			err = fmt.Errorf("invalid sd impl: %s", impl)
+		}
+
 		onEnd(must, err)
 	}
 }
@@ -60,7 +65,7 @@ func NewCli(svc enums.Svc, gc sd.GenClient) *RpcClient {
 // Getter returns gRPC Server Client
 func (c *RpcClient) Getter() any {
 	c.once.Do(func() {
-		c.inst = sd.NewInstance(c.svc.Name(), c.genClient, defaultSD)
+		c.inst = sd.NewInstance(c.svc.Name(), c.genClient, rootSD)
 		initializedSvcCli = append(initializedSvcCli, c)
 	})
 	v, err := c.inst.GetSingleConnWrapper()

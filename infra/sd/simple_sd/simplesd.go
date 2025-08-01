@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/parnurzeal/gorequest"
 	"github.com/samber/lo"
+	"go.uber.org/zap"
 	"microsvc/infra/sd/abstract"
 	"microsvc/pkg/xerr"
 	"microsvc/pkg/xlog"
@@ -25,6 +26,7 @@ func New(port int) *SimpleSd {
 }
 
 var _ abstract.ServiceDiscovery = (*SimpleSd)(nil)
+var logPrefix = "simple_sd."
 
 const (
 	Name          = "simple_sd"
@@ -150,10 +152,21 @@ func (s *SimpleSd) HealthCheck(ctx context.Context, service string) error {
 		return xerr.ErrInternal.New("health check failed, got resp: %+v", res)
 	}
 	if !rspBody.Registered {
-		xlog.Warn(fmt.Sprintf("simple_sd.HealthCheck: service [%s - id:%s] offline, do re-register now", service, params.Id))
+		xlog.Warn(fmt.Sprintf(logPrefix+"HealthCheck: service [%s - id:%s] offline, do re-register now", service, params.Id))
 		delete(s.registry, params.Name)
 		err := s.Register(params.Name, params.Host, params.Port, params.Metadata)
 		return err
 	}
 	return nil
+}
+
+func (s *SimpleSd) Stop() {
+	for _, r := range s.registry {
+		err := s.Deregister(r.Name)
+		if err != nil {
+			xlog.Error(logPrefix+"Stop: deregister fail", zap.Error(err), zap.String("svc", r.Name))
+		} else {
+			xlog.Info(logPrefix+"Stop: deregister success", zap.String("svc", r.Name))
+		}
+	}
 }

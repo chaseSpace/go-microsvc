@@ -46,14 +46,14 @@ func GetConn(svc enums.Svc) (conn *grpc.ClientConn) {
 	v, _ = InstMgr.cmap.LoadOrStore(svc, &InstanceImplT{
 		impl: sd.NewInstance(svc.Name(), func(conn *grpc.ClientConn) interface{} {
 			return nil
-		}, defaultSD),
+		}, rootSD),
 		once: new(sync.Once),
 	})
 	inst = v.(*InstanceImplT)
 	inst.once.Do(func() { // 每个svc只初始化一个instance
 		inst.impl = sd.NewInstance(svc.Name(),
 			func(conn *grpc.ClientConn) interface{} { return nil },
-			defaultSD)
+			rootSD)
 	})
 	return
 }

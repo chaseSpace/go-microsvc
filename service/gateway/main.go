@@ -30,7 +30,7 @@ func main() {
 	defer graceful.OnExit()
 
 	infra.Setup(
-		sd.InitSimpleSdServer(), // It always starts sd-server on gateway!
+		sd.Init(true),
 		cache.InitRedis(true),
 		orm.Init(true),
 		svccli.Init(true),

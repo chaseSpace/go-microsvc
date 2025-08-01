@@ -32,3 +32,5 @@ func (e Empty) Discover(ctx context.Context, serviceName string, block bool) ([]
 func (e Empty) HealthCheck(ctx context.Context, service string) error {
 	return nil
 }
+
+func (e Empty) Stop() {}

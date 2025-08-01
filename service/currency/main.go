@@ -10,6 +10,7 @@ import (
 	"microsvc/infra/svccli"
 	"microsvc/infra/xgrpc"
 	_ "microsvc/infra/xgrpc/protocodec"
+	"microsvc/infra/xmq"
 	"microsvc/pkg"
 	"microsvc/pkg/xlog"
 	"microsvc/protocol/svc/currencypb"
@@ -33,6 +34,7 @@ func main() {
 	infra.Setup(
 		cache.InitRedis(true),
 		orm.Init(true),
+		xmq.Init(true),
 		sd.Init(true),
 		svccli.Init(true),
 	)

@@ -59,7 +59,6 @@ func TearUp(svc enums.Svc, svcConf deploy.SvcConfImpl) {
 			xlog.Init,
 		)
 		infra.Setup(
-			//sd.Init(true),
 			svccli.Init(true),
 		)
 	})
