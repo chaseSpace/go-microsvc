@@ -34,9 +34,9 @@ func main() {
 	infra.Setup(
 		cache.InitRedis(true),
 		orm.Init(true),
+		xmq.Init(true),
 		sd.Init(true),
 		svccli.Init(true),
-		xmq.Init(true),
 	)
 
 	x := xgrpc.New()
