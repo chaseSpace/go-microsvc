@@ -66,7 +66,7 @@
 
 本项目文档指引：
 
-- [使用证书加密以及指定授权gRPC通信](docs/开发必看/generate_cert_for_svc.md)
+- [使用证书加密以及指定授权gRPC通信](docs/开发必看/生成服务证书)
 
 ## 1. 启动&停止日志输出
 
@@ -145,7 +145,7 @@ cp $GOPATH/bin/* tool/protoc_v24
 ### 说明
 
 1. 增加微服务时，需要重新颁发微服务的 [client证书](deploy/dev/cert/client-cert.pem)
-   ，务必按照[文档](docs/开发必看/generate_cert_for_svc.md#232-生成client证书)进行操作。
+   ，务必按照[文档](docs/开发必看/生成服务证书#232-生成client证书)进行操作。
 2. 开发常用库
     - 泛型库：lo
     - 颜色打印: pp
