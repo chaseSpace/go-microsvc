@@ -34,6 +34,7 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 			Logger:          ormLogger(),
 			CreateBatchSize: 100, // 批量插入时，分批进行
 			//TranslateError:  true, // 将数据库特有的错误转换为GORM的通用错误
+			PrepareStmt: true,
 		}
 		var db *gorm.DB
 		var err error
@@ -58,8 +59,10 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 		fmt.Println("#### infra.mysql init success")
 		sqlDB, _ := db.DB()
 
-		sqlDB.SetMaxOpenConns(100)
-		sqlDB.SetMaxIdleConns(20)
+		sqlDB.SetMaxOpenConns(20)
+		sqlDB.SetMaxIdleConns(5)
+		sqlDB.SetConnMaxLifetime(time.Hour)
+		sqlDB.SetConnMaxIdleTime(time.Minute * 5)
 
 		// 检查业务需要的db是否在配置中存在
 		err = setupSvcDB()

@@ -122,7 +122,7 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 
 // 发现健康的端点列表
 func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block bool) (list []abstract.ServiceInstance, err error) {
-	opt := &capi.QueryOptions{WaitIndex: c.lastIndex, WaitTime: waitTime, UseCache: true}
+	opt := &capi.QueryOptions{WaitIndex: c.lastIndex, WaitTime: waitTime, UseCache: true, MaxAge: time.Minute * 5}
 	if !block {
 		opt.WaitIndex = 0 // set to 0 to disable blocking query
 	}
