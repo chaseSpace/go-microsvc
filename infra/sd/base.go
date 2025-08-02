@@ -26,7 +26,7 @@ import (
 var registeredServices []string
 var gCtx, cancelGCtx = context.WithCancel(context.TODO())
 
-const Impl = "consul" // 统一指定所有服务使用的注册发现组件
+const Impl = "consul" // 统一指定所有服务使用的注册发现组件，支持 consul | simple_sd | mdns
 const logPrefix = "sd: "
 
 var rootSD abstract.ServiceDiscovery

@@ -4,6 +4,7 @@ SVC ?=
 ENV ?= 'beta'
 TAG ?= '1.0.0'
 BRANCH ?= ''
+K8S ?= 0 # 是否k8s架构
 
 DIR ?=
 
@@ -46,7 +47,7 @@ install:
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint
 bin:
 	$(info Building binary for SVC=$(SVC))
-	@sh ./shellscript/build_bin.sh $(SVC)
+	@sh ./shellscript/build_bin.sh $(SVC) $(K8S)
 
 deploy:
 	$(info Deploying microservice SVC=$(SVC))

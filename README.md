@@ -9,6 +9,9 @@
   * [1. 启动&停止日志输出](#1-启动停止日志输出)
   * [2. 目录结构释义](#2-目录结构释义)
   * [3. 如何使用](#3-如何使用)
+    * [3.1 初始化](#31-初始化)
+    * [3.2 选择注册中心组件](#32-选择注册中心组件)
+    * [3.3 本地启动（开发环境）](#33-本地启动开发环境)
   * [4. 本地（dev）环境启动微服务的原理](#4-本地dev环境启动微服务的原理)
   * [5. 工具下载（更新）](#5-工具下载更新)
     * [5.1 下载protoc](#51-下载protoc)
@@ -78,21 +81,51 @@ TODO
 
 ## 3. 如何使用
 
+### 3.1 初始化
+
 ```shell
 git clone --recurse-submodules https://github.com/chaseSpace/go-microsvc.git
 cd go-microsvc/
 go mod download
-
-# 启动服务
-go run service/user/main.go
-go run service/admin/main.go
-go run service/gateway/main.go
 ...
-
 # 调用gateway，参考 根/test/gateway/apitest.http
 ```
 
-本项目已支持在K8s环境中部署，请参考[在K8s上部署此项目](docs/开发必看/基于k8s的部署)。
+### 3.2 选择注册中心组件
+
+微服务架构中，注册中心组件是必须的，它用来注册服务，并返回服务端点列表给调用方，以此实现单个服务的高可用性。
+
+常见的生产级注册中心组件有：etcd、consul、zookeeper、nacos等。但也有一些轻量级用开发测试的注册中心组件有：如mdns(
+apple公司实现)、simple_sd(作者实现)。
+
+本项目模板通过抽象接口提供注册中心组件接口：[define.go~ServiceDiscovery](infra/sd/abstract/define.go)，
+已实现的注册中心组件有：
+
+- [simple_sd](infra/sd/simple_sd)：单机环境使用（开发环境）
+- [mdns](infra/sd/mdns)：Mac环境可用（开发环境）
+- [consul](infra/sd/consul):
+  生产环境使用，需单独启动consul组件，参考[部署consul](docs%2F%E5%BC%80%E5%8F%91%E5%BF%85%E7%9C%8B%2F%E9%83%A8%E7%BD%B2consul.md)
+
+修改变量：[base.go~Impl](infra/sd/base.go)
+
+**若使用K8s**，则无需修改上述变量，将直接使用K8s提供的Service作为服务发现功能，不过在构建服务时需要添加tag，例如：
+
+```shell
+make bin SVC=gateway K8S=1
+```
+
+### 3.3 本地启动（开发环境）
+
+```shell
+# 若使用 simple_sd，则必须先启动gateway（作为simple_sd server）
+# - 其他服务启动时会自动注册到simple_sd
+go run service/gateway/main.go
+go run service/user/main.go
+go run service/admin/main.go
+
+```
+
+若是在K8s环境中部署，请参考[在K8s上部署此项目](docs/开发必看/基于k8s的部署)。
 
 ## 4. 本地（dev）环境启动微服务的原理
 
@@ -101,7 +134,7 @@ go run service/gateway/main.go
 
 实现一个简单的注册中心模块，然后**在开发环境**随服务启动。
 
-- [~~网络协议之mDNS~~（由于Windows支持不完善，不再使用）](https://www.cnblogs.com/Alanf/p/8653223.html)
+- [网络协议之mDNS（Windows支持不完善，仅Mac环境适用）](https://www.cnblogs.com/Alanf/p/8653223.html)
 - [simple_sd实现](./xvendor/simple_sd)
 
 注意：dev环境启动的微服务仍然连接的是**beta环境的数据库**。
@@ -110,7 +143,7 @@ go run service/gateway/main.go
 
 ### 5.1 下载protoc
 
-工具以及插件的二进制文件都已经包含在本仓库的`tool/`目录下，使用项目的每个人在拉取项目后都无需另外下载。
+工具以及插件的二进制文件都已经包含在本仓库的`tool/`目录下，使用项目的每个成员在拉取项目后都无需另外下载。
 已下载的是protoc v24.4版本，其余插件也是编写本项目时的最新版本（下载时间更新至2023年10月5日）。
 
 如需更换版本（所有平台都要换），可点击下方链接自行下载：
