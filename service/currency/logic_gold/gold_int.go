@@ -29,6 +29,6 @@ func (intCtrl) UpdateUserGold(ctx context.Context, req *currencypb.UpdateUserGol
 		TxType: req.TxType,
 		Remark: req.Remark,
 	}
-	_, err := dao.GoldTxLogDao.ExecuteGoldTransaction(ctx, params)
-	return new(currencypb.UpdateUserGoldRes), err
+	txID, err := dao.GoldTxLogDao.ExecuteGoldTransaction(ctx, params)
+	return &currencypb.UpdateUserGoldRes{TxId: txID}, err
 }

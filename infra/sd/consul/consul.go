@@ -137,7 +137,7 @@ func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block 
 		c.lastIndex = meta.LastIndex
 	}
 
-	var checkPass = false
+	var checkPass bool
 	for _, s := range entries {
 
 		checkPass = false

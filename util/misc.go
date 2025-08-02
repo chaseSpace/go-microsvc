@@ -42,7 +42,7 @@ func (t *TcpListenerFetcher) Get() (lis net.Listener, port int, err error) {
 	loops := t.portMax - t.portMin + 1
 	for i := 0; i < loops; i++ {
 		port = urand.RandIntRange(t.portMin, t.portMax, t.mem)
-		lis, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", port))
 		if err != nil {
 			if strings.Contains(err.Error(), "already") {
 				//println("continue", port)
