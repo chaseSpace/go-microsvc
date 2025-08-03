@@ -37,7 +37,7 @@
 - ✅ 使用K8s Service作为服务发现
 - ✅ 使用gorm作为orm组件，支持扩展
 - ✅ 使用Redis作为cache组件，支持扩展
-- ✅ 支持使用Redis/Kafka作为消息队列
+- ✅ 支持使用Redis/Kafka/NATS作为消息队列
 - ✅ RPC超时重试、熔断和全局限速（server侧）功能
 - ✅ 支持本地开发环境启动**多个**微服务，且支持RPC调用（不依赖注册中心组件）
 
