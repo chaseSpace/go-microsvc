@@ -90,9 +90,11 @@ func (m *MqKafka) LazyGetWriter(topic consts.Topic) *kafka.Writer {
 		Addr:  kafka.TCP(deploy.XConf.Kafka.Brokers...),
 		Topic: topic.String(),
 		// 指定分区的balancer模式为最小字节分布，其他有RoundRobin、Hash、 ReferenceHash、 CRC32Balancer、 Murmur2Balancer
-		Balancer:     &kafka.LeastBytes{},
-		RequiredAcks: kafka.RequireAll, // ack模式
-		Async:        false,            // 异步?
+		Balancer:               &kafka.LeastBytes{},
+		RequiredAcks:           kafka.RequireOne, // ack模式
+		Async:                  false,            // 异步?
+		AllowAutoTopicCreation: true,
+		// ⚠️此sdk不支持启用producer的幂等性，消费者自行处理
 	}
 	_w, _ := m.rwMap.LoadOrStore(k, w)
 	return _w.(*kafka.Writer)
@@ -136,12 +138,12 @@ func (m *MqKafka) Produce(ctx context.Context, topic consts.Topic, msg []byte) e
 
 // Consume 消费消息
 // - 消费过程受到保护，若主线程停止，需要等待此协程退出
-func (m *MqKafka) Consume(topic consts.Topic, handler func(ctx context.Context, msg []byte), _arg ...define.ConsumeExtraArg) {
+func (m *MqKafka) Consume(topic consts.Topic, handler func(ctx context.Context, msg define.MsgRaw), _arg ...define.ConsumeExtraArg) {
 	arg := define.ConsumeExtraArg{}
 	if len(_arg) > 0 {
 		arg = _arg[0]
 	}
-	r := m.LazyGetReader(topic, arg.ConsumeGroupId)
+	r := m.LazyGetReader(topic, arg.KafkaConsumeGroupId)
 
 	m.waitConsumers.Add(1)
 	defer func() { m.waitConsumers.Done() }()
@@ -154,7 +156,8 @@ func (m *MqKafka) Consume(topic consts.Topic, handler func(ctx context.Context, 
 	read := func() (msg kafka.Message, err error) {
 		var tempCtx, cancel = context.WithTimeout(m.mainThreadCtx, time.Second*3)
 		defer cancel()
-		return r.ReadMessage(tempCtx)
+		// 注意：FetchMessage 不会调用 CommitMessages，需 handler 自行调用
+		return r.FetchMessage(tempCtx)
 	}
 
 	for {
@@ -164,23 +167,39 @@ func (m *MqKafka) Consume(topic consts.Topic, handler func(ctx context.Context, 
 				continue
 			}
 			if errors.Is(err, context.Canceled) { // 主线程退出
-				xlog.Info("MqKafka [Consume] main thread quit", zap.String("topic", topic.String()), zap.String("groupId", arg.ConsumeGroupId.String()))
+				xlog.Info("MqKafka [Consume] main thread quit", zap.String("topic", topic.String()), zap.String("groupId", arg.KafkaConsumeGroupId.String()))
 				return
 			}
-			xlog.Error("MqKafka [Consume] ReadMessage failed", zap.Error(err), zap.String("topic", topic.String()), zap.String("groupId", arg.ConsumeGroupId.String()))
+			xlog.Error("MqKafka [Consume] ReadMessage failed", zap.Error(err), zap.String("topic", topic.String()), zap.String("groupId", arg.KafkaConsumeGroupId.String()))
 			time.Sleep(time.Second * 3) // 故障退避
 			continue
 		}
 
 		// successful
-		handler(context.TODO(), msg.Value)
+		handler(context.TODO(), &_msgRaw{msg: &msg, r: r})
 		ct++
 
 		// 控制日志频率
 		select {
 		case <-logTicker.C:
 			xlog.Info("MqKafka [Consume] Counting", zap.Int("COUNT", ct), zap.String("topic", topic.String()),
-				zap.String("groupId", arg.ConsumeGroupId.String()))
+				zap.String("groupId", arg.KafkaConsumeGroupId.String()))
+		default:
 		}
 	}
+}
+
+type _msgRaw struct {
+	msg *kafka.Message
+	r   *kafka.Reader
+}
+
+var _ define.MsgRaw = (*_msgRaw)(nil)
+
+func (m _msgRaw) Bytes() []byte {
+	return m.msg.Value
+}
+
+func (m _msgRaw) Ack() error {
+	return m.r.CommitMessages(context.TODO(), *m.msg)
 }

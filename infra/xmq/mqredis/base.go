@@ -24,7 +24,7 @@ type MqRedis struct {
 }
 
 func New() *MqRedis {
-	return &MqRedis{listKeyPre: "mq_cache"}
+	return &MqRedis{listKeyPre: "msg_queue:"}
 }
 
 func (m *MqRedis) Name() string {
@@ -62,7 +62,7 @@ func (m *MqRedis) Produce(ctx context.Context, topic consts.Topic, msg []byte) e
 	return err
 }
 
-func (m *MqRedis) Consume(topic consts.Topic, handler func(ctx context.Context, msg []byte), _arg ...define.ConsumeExtraArg) {
+func (m *MqRedis) Consume(topic consts.Topic, handler func(ctx context.Context, msg define.MsgRaw), _arg ...define.ConsumeExtraArg) {
 	serverFailed := false
 	for {
 		if serverFailed {
@@ -78,6 +78,20 @@ func (m *MqRedis) Consume(topic consts.Topic, handler func(ctx context.Context, 
 			continue
 		}
 		serverFailed = false
-		handler(context.TODO(), []byte(val[1]))
+		handler(context.TODO(), &_msgRaw{msg: []byte(val[1])})
 	}
+}
+
+type _msgRaw struct {
+	msg []byte
+}
+
+var _ define.MsgRaw = (*_msgRaw)(nil)
+
+func (m _msgRaw) Bytes() []byte {
+	return m.msg
+}
+
+func (m _msgRaw) Ack() error {
+	return nil
 }

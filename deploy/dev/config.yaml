@@ -77,6 +77,9 @@ mq_config:
   kafka:
     brokers:
       - localhost:9094
+  nats:
+    url: nats://0.0.0.0:4222
+    # 自定义认证方式...
 
 # 外部通知：钉钉等
 external_notify:

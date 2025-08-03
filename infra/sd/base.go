@@ -32,9 +32,9 @@ const logPrefix = "sd: "
 var rootSD abstract.ServiceDiscovery
 
 func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
-	graceful.AddStopFunc(Stop)
-
 	return func(cc *deploy.XConfig, finished func(must bool, err error)) {
+		graceful.AddStopFunc(Stop)
+
 		var err error
 
 		switch Impl {

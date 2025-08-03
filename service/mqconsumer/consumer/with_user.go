@@ -41,7 +41,7 @@ func (*withUserT) ConsumeSignIn() {
 
 		return consumeSignInV.WriteSignInLog(ctx, msg)
 
-	}, define.ConsumeExtraArg{ConsumeGroupId: consts.CGDefault})
+	}, define.ConsumeExtraArg{KafkaConsumeGroupId: consts.CGDefault})
 }
 
 func (*withUserT) ConsumeSignUp() {
@@ -51,7 +51,7 @@ func (*withUserT) ConsumeSignUp() {
 
 		xlog.Debug("ConsumeSignUp success", zap.Any("msg", msg))
 		return nil
-	}, define.ConsumeExtraArg{ConsumeGroupId: consts.CGDefault})
+	}, define.ConsumeExtraArg{KafkaConsumeGroupId: consts.CGDefault})
 }
 
 func (*withUserT) ConsumeUserInfoUpdate() {
@@ -61,7 +61,7 @@ func (*withUserT) ConsumeUserInfoUpdate() {
 
 		ctx = context.TODO()
 		return consumerUserInfoUpdateV.PanicTest(ctx, msg)
-	}, define.ConsumeExtraArg{ConsumeGroupId: consts.CGDefault})
+	}, define.ConsumeExtraArg{KafkaConsumeGroupId: consts.CGDefault})
 }
 
 // ----------------- 优雅的分割线（下面定义不同topic的多个消费方法） -----------------

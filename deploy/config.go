@@ -81,6 +81,9 @@ type MqConfig struct {
 	Redis struct {
 		Meta *Redis `mapstructure:"meta"`
 	} `mapstructure:"redis"`
+	NATS struct {
+		URL string `mapstructure:"url"`
+	} `mapstructure:"nats"`
 }
 
 type ExternalNotify struct {

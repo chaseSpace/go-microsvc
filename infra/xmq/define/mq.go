@@ -8,7 +8,7 @@ import (
 )
 
 type ConsumeExtraArg struct {
-	ConsumeGroupId consts.ConsumerGroup // kafka 需要
+	KafkaConsumeGroupId consts.ConsumerGroup // kafka 需要
 }
 
 type MqProviderAPI interface {
@@ -16,7 +16,7 @@ type MqProviderAPI interface {
 	Init(cc *deploy.MqConfig) error
 	Stop() error
 	Produce(ctx context.Context, topic consts.Topic, msg []byte) error
-	Consume(topic consts.Topic, handler func(ctx context.Context, msg []byte), arg ...ConsumeExtraArg)
+	Consume(topic consts.Topic, handler func(ctx context.Context, msg MsgRaw), arg ...ConsumeExtraArg)
 }
 
 type MqMsgAPI interface {
@@ -28,4 +28,9 @@ type MqMsgAPI interface {
 	SetMsTimestamp(int64)
 	GetMsgTime() time.Time
 	NeedArchive() bool
+}
+
+type MsgRaw interface {
+	Bytes() []byte
+	Ack() error
 }

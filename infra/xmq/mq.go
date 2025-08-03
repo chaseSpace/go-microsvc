@@ -9,6 +9,7 @@ import (
 	"microsvc/enums"
 	"microsvc/infra/xmq/define"
 	"microsvc/infra/xmq/mqkafka"
+	"microsvc/infra/xmq/mqnats"
 	"microsvc/infra/xmq/mqredis"
 	"microsvc/model/svc/mqconsumer"
 	"microsvc/pkg/xlog"
@@ -26,22 +27,23 @@ import (
 var provider define.MqProviderAPI
 
 func Init(must bool, impl ...string) func(*deploy.XConfig, func(must bool, err error)) {
-	graceful.AddStopFunc(Stop)
-
 	return func(cc *deploy.XConfig, finished func(must bool, err error)) {
-		var err error
+		graceful.AddStopFunc(Stop)
 
+		var err error
 		_impl := "redis"
 		if len(impl) > 0 {
 			_impl = impl[0]
 		}
 		switch _impl {
 		case "redis":
-			provider = mqredis.New() // 这里指定 mq 实现
+			provider = mqredis.New()
 		case "kafka":
 			provider = mqkafka.New()
+		case "nats":
+			provider = mqnats.New()
 		default:
-			panic("mq impl not support")
+			panic(fmt.Sprintf("mq impl:[%s] not support", _impl))
 		}
 
 		err = provider.Init(&cc.MqConfig)
@@ -106,20 +108,24 @@ func Consume[T define.MqMsgAPI](topic consts.Topic, handler func(context.Context
 	if deploy.XConf.Svc != enums.SvcMqConsumer && deploy.XConf.Svc != enums.SvcGateway {
 		panic("only service->[mqconsumer/gateway] can consume msg")
 	}
-	provider.Consume(topic, func(ctx context.Context, msg []byte) {
+	provider.Consume(topic, func(ctx context.Context, msg define.MsgRaw) {
 		var t T
-		err := ujson.Unmarshal(msg, &t)
+		err := ujson.Unmarshal(msg.Bytes(), &t)
 		if err != nil {
-			xlog.Error(provider.Name()+" [Mq-Consume] Unmarshal failed...", zap.Error(err), zap.String("topic", topic.String()), zap.ByteString("msg", msg))
+			xlog.Error(provider.Name()+" [MqConsume] Unmarshal failed...", zap.Error(err), zap.String("topic", topic.String()), zap.ByteString("msg", msg.Bytes()))
 			return
 		}
 		safeHandle(topic, t, func() {
 			err = handler(ctx, t)
 			if err != nil {
-				xlog.Error(provider.Name()+" [Mq-Consume] handler failed...", zap.Error(err), zap.String("topic", topic.String()), zap.Any("msg", msg))
+				xlog.Error(provider.Name()+" [MqConsume] handler failed...", zap.Error(err), zap.String("topic", topic.String()), zap.Any("msg", msg))
 				return
 			}
-			xlog.Debug(provider.Name()+" [Mq-Consume] handler success...", zap.String("topic", topic.String()), zap.String("msg", string(msg)))
+			err = msg.Ack()
+			xlog.Debug(provider.Name()+" [MqConsume] handler success...",
+				zap.NamedError("ack", err),
+				zap.String("topic", topic.String()),
+				zap.String("msg", util.TruncateUTF8(string(msg.Bytes()), 50, "...")))
 		})
 	}, arg...)
 }
@@ -128,7 +134,7 @@ func safeHandle(topic consts.Topic, msg any, consume func()) (safe bool) {
 	util.Protect(func() { consume() }, func(exception interface{}) {
 		title := fmt.Sprintf("MQ消费异常: %s", topic.String())
 		// 接入告警
-		xnotify.NotifyDingtalkMD(context.TODO(), xnotify.SceneMqException,
+		_ = xnotify.NotifyDingtalkMD(context.TODO(), xnotify.SceneMqException,
 			xnotify.NotifyArgs{
 				Title: title,
 				//Content:       "",
