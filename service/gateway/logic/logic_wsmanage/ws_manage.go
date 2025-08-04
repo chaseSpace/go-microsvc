@@ -82,7 +82,7 @@ func (m *WsManagerT) ConsumeIMMsg() {
 			conn.SendMsg(ujson.MustProtoJsonMarshal(&t.Msg, false))
 		}
 		return err
-	}, define.ConsumeExtraArg{KafkaConsumeGroupId: consts.CGDefault})
+	}, define.ConsumeExtraArg{KafkaConsumeGroupName: consts.CGDefault, NATSConsumerName: consts.ConsumerNameDefault})
 }
 
 func (m *WsManagerT) AddConn(ws *logic_ws.ServeWs) error {

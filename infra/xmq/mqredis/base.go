@@ -16,6 +16,7 @@ import (
 )
 
 var _ define.MqProviderAPI = (*MqRedis)(nil)
+var gCtx, gCancel = context.WithCancel(context.Background())
 
 type MqRedis struct {
 	name       string
@@ -45,7 +46,6 @@ func (m *MqRedis) Init(cc *deploy.MqConfig) (err error) {
 }
 
 func (m *MqRedis) Stop() error {
-	xlog.Debug("mq-redis: resource released...")
 	return m.cli.Close()
 }
 
@@ -63,22 +63,33 @@ func (m *MqRedis) Produce(ctx context.Context, topic consts.Topic, msg []byte) e
 }
 
 func (m *MqRedis) Consume(topic consts.Topic, handler func(ctx context.Context, msg define.MsgRaw), _arg ...define.ConsumeExtraArg) {
-	serverFailed := false
+	delay := time.NewTimer(0)
 	for {
-		if serverFailed {
-			time.Sleep(time.Second * 5)
+		select {
+		case <-gCtx.Done():
+			return
+		case <-delay.C:
+			val, err := m.cli.BRPop(gCtx, time.Second, m.key(topic)).Result()
+			if errors.Is(err, redis.Nil) {
+				delay.Reset(time.Second * 3)
+				continue
+			}
+			if err != nil {
+				delay.Reset(time.Second * 5)
+				xlog.Error("MqRedis [Consume] BRPop failed", zap.Error(err), zap.String("topic", topic.String()))
+				continue
+			}
+
+			delay.Reset(0)
+			isTimeout := util.RunTaskWithCtxTimeout(
+				time.Second*10, func(ctx context.Context) {
+					handler(ctx, &_msgRaw{msg: []byte(val[1])})
+				},
+			)
+			if isTimeout {
+				xlog.Error("MqRedis [Consume] handler timeout", zap.Error(err), zap.String("topic", topic.String()), zap.String("msg", val[1]))
+			}
 		}
-		val, err := m.cli.BRPop(context.TODO(), time.Second*10, m.key(topic)).Result()
-		if errors.Is(err, redis.Nil) {
-			continue
-		}
-		if err != nil {
-			serverFailed = true
-			xlog.Error("MqRedis [Consume] BRPop failed", zap.Error(err), zap.String("topic", topic.String()))
-			continue
-		}
-		serverFailed = false
-		handler(context.TODO(), &_msgRaw{msg: []byte(val[1])})
 	}
 }
 
@@ -93,5 +104,6 @@ func (m _msgRaw) Bytes() []byte {
 }
 
 func (m _msgRaw) Ack() error {
+	// todo redis 暂无 ack机制，可自行实现
 	return nil
 }

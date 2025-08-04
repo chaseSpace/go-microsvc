@@ -1,6 +1,9 @@
 package consts
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Topic string
 
@@ -20,10 +23,29 @@ func (t Topic) Format(args ...interface{}) Topic {
 	return Topic(fmt.Sprintf(t.String(), args...))
 }
 
-type ConsumerGroup string
+// NATSStreamSubject 针对NATS服务，获取其Subject
+func (t Topic) NATSStreamSubject() (string, string) {
+	// 对应JetStream模式，topic命名规则: STREAM|SUBJECT
+	var stream, subject string
+	ss := strings.Split(t.String(), "|")
+	if len(ss) == 1 {
+		stream = "GO_MICROSVC"
+		return stream, ss[0]
+	}
+	stream = ss[0]
+	subject = ss[1]
+	return stream, subject
+}
+
+type ConsumerGroup string // 如 Kafka 使用
+type ConsumerName string  // 如 NATS 使用
 
 const (
 	CGDefault ConsumerGroup = "cg_default"
+)
+
+const (
+	ConsumerNameDefault = "consumer_default"
 )
 
 func (t ConsumerGroup) String() string {

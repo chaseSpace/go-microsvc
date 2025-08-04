@@ -35,7 +35,7 @@ func (w *withMicroSvcT) ConsumeAPICallLog() {
 
 		ctx = context.TODO()
 		return consumerAPICallLogV.Archive(ctx, msg)
-	}, define.ConsumeExtraArg{KafkaConsumeGroupId: consts.CGDefault})
+	}, define.ConsumeExtraArg{KafkaConsumeGroupName: consts.CGDefault, NATSConsumerName: consts.ConsumerNameDefault})
 }
 
 // ----------------- 优雅的分割线（下面定义不同topic的多个消费方法） -----------------

@@ -2,8 +2,6 @@ package main
 
 import (
 	"google.golang.org/grpc"
-	"microsvc/bizcomm/mq"
-	"microsvc/consts"
 	"microsvc/deploy"
 	"microsvc/enums"
 	"microsvc/infra"
@@ -21,7 +19,6 @@ import (
 	deploy2 "microsvc/service/mqconsumer/deploy"
 	"microsvc/service/mqconsumer/handler"
 	"microsvc/util/graceful"
-	"time"
 )
 
 func main() {
@@ -37,7 +34,7 @@ func main() {
 	infra.Setup(
 		cache.InitRedis(true),
 		orm.Init(true),
-		xmq.Init(true, "nats"),
+		xmq.Init(true, "redis"),
 		sd.Init(true),
 		svccli.Init(true),
 	)
@@ -54,16 +51,15 @@ func main() {
 	x.Start(deploy.XConf)
 	sd.MustRegister(deploy.XConf)
 
-	go func() {
-		time.Sleep(time.Second)
-
-		for i := 0; i < 2; i++ {
-			xmq.Produce(consts.TopicSignIn, mq.NewMsgSignIn(
-				&mq.SignInBody{
-					UID: int64(i),
-				}),
-			)
-		}
-	}()
+	//go func() {
+	//	for i := 0; i < 2; i++ {
+	//		xmq.Produce(consts.TopicSignIn, mq.NewMsgSignIn(
+	//			&mq.SignInBody{
+	//				UID: int64(i),
+	//			}),
+	//		)
+	//		time.Sleep(time.Second * 4)
+	//	}
+	//}()
 	graceful.Run()
 }

@@ -21,7 +21,7 @@ type Consul struct {
 }
 
 var _ abstract.ServiceDiscovery = (*Consul)(nil)
-var logPrefix = "consul."
+var logPrefix = "consul"
 
 const Name = "Consul"
 const healthCheckNamePrefix = "microsvc-"
@@ -113,7 +113,7 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 	}
 
 	if offline {
-		xlog.Warn(fmt.Sprintf(logPrefix+"HealthCheck: service [%s - id:%s] offline, do re-register now", service, params.ID))
+		xlog.Warn(fmt.Sprintf(logPrefix+".health-check: service [%s - id:%s] offline, do re-register now", service, params.ID))
 		err = c.client.Agent().ServiceRegister(params)
 		return err
 	}
@@ -166,9 +166,9 @@ func (c *Consul) Stop() {
 	for _, r := range c.registry {
 		err := c.client.Agent().ServiceDeregister(r.ID)
 		if err != nil {
-			xlog.Error(logPrefix+"Stop: deregister fail", zap.Error(err), zap.String("svc", r.Name))
+			xlog.Error(logPrefix+": deregister fail", zap.Error(err), zap.String("svc", r.Name))
 		} else {
-			xlog.Info(logPrefix+"Stop: deregister success", zap.String("svc", r.Name))
+			xlog.Info(logPrefix+": deregister success", zap.String("svc", r.Name))
 		}
 	}
 }

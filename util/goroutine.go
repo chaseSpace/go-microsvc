@@ -19,16 +19,24 @@ func RunTask(ctx context.Context, f func()) {
 	}
 }
 
-func RunTaskWithTimeout(timeout time.Duration, f func()) {
+func RunTaskWithTimeout(timeout time.Duration, f func()) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	RunTask(ctx, f)
+	return ctx.Err()
 }
 
-func RunTaskWithCtxTimeout(timeout time.Duration, f func(ctx context.Context)) {
+func RunTaskWithCtxTimeout(timeout time.Duration, f func(ctx context.Context)) (isTimeout bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	defer func() {
+		if ctx.Err() != nil {
+			isTimeout = true
+		} else {
+			cancel()
+		}
+	}()
 	f(ctx)
+	return
 }
 
 func Protect(f func(), onPanic ...func(exception interface{})) {

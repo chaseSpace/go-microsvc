@@ -60,7 +60,9 @@ func Stop() {
 	}
 	err := provider.Stop()
 	if err != nil {
-		xlog.Error(provider.Name()+" [Stop] failed", zap.Error(err))
+		xlog.Error("mq: ["+provider.Name()+"] stop failed", zap.Error(err))
+	} else {
+		xlog.Info("mq: [" + provider.Name() + "] resource released...")
 	}
 }
 

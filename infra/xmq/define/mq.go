@@ -8,7 +8,8 @@ import (
 )
 
 type ConsumeExtraArg struct {
-	KafkaConsumeGroupId consts.ConsumerGroup // kafka 需要
+	KafkaConsumeGroupName consts.ConsumerGroup // kafka 需要
+	NATSConsumerName      string               // nats 需要
 }
 
 type MqProviderAPI interface {
