@@ -125,21 +125,18 @@ func (i *InstanceImpl) backgroundRefresh() {
 // 阻塞刷新（首次请求不阻塞）
 func (i *InstanceImpl) query(block bool) error {
 	var (
-		entries []abstract.ServiceInstance
+		entries []abstract.Instance
 		cc      *grpc.ClientConn
 		err     error
 		ctx     context.Context
 	)
-	discovery := func() ([]abstract.ServiceInstance, error) {
+	discovery := func() (list []abstract.Instance, err error) {
 		ctx = context.WithValue(context.Background(), abstract.CtxDurKey{}, time.Minute*2)
-		return i.sd.Discover(ctx, i.svc, block)
+		list, err = i.sd.Discover(ctx, i.svc, block)
+		return
 	}
 
-	//println("query-111111", i.svc)
-	//defer func() {
-	//	println("query-222222", i.svc)
-	//}()
-	entries, err = discovery() // simple-sd server down!!!
+	entries, err = discovery()
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			xlog.Debug(logPrefix+"discover timeout", zap.String("svc", i.svc))

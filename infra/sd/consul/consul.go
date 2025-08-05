@@ -23,12 +23,11 @@ type Consul struct {
 var _ abstract.ServiceDiscovery = (*Consul)(nil)
 var logPrefix = "consul"
 
-const Name = "Consul"
 const healthCheckNamePrefix = "microsvc-"
 
-func New(address string) (*Consul, error) {
+func New(endpoints string) (*Consul, error) {
 	cfg := capi.DefaultConfig()
-	cfg.Address = address // e.g. 127.0.0.1:8500
+	cfg.Address = endpoints // e.g. 127.0.0.1:8500
 	client, err := capi.NewClient(cfg)
 	if err != nil {
 		return nil, err
@@ -37,16 +36,16 @@ func New(address string) (*Consul, error) {
 }
 
 func (c *Consul) Name() string {
-	return Name
+	return "Consul"
 }
 
-func (c *Consul) Register(serviceName string, host string, port int, metadata map[string]string) error {
+func (c *Consul) Register(ctx context.Context, serviceName string, host string, port int, metadata map[string]string) error {
 	if c.registry[serviceName] != nil {
 		return fmt.Errorf("consul: already registered")
 	}
 	id := urand.Strings(4)
 	tcpAddr := fmt.Sprintf("%s:%d", host, port)
-	params := &capi.AgentServiceRegistration{
+	asr := &capi.AgentServiceRegistration{
 		ID:      id,
 		Name:    serviceName,
 		Tags:    []string{"microsvc"},
@@ -56,25 +55,27 @@ func (c *Consul) Register(serviceName string, host string, port int, metadata ma
 		Check:   healthCheckAttr(healthCheckNamePrefix+serviceName+"-health", tcpAddr),
 	}
 
-	err := c.client.Agent().ServiceRegister(params)
+	opts := capi.ServiceRegisterOpts{ReplaceExistingChecks: true}.WithContext(ctx)
+	err := c.client.Agent().ServiceRegisterOpts(asr, opts)
 	if err != nil {
 		return err
 	}
-	c.registry[serviceName] = params // save register params that could be used in next registration
+	c.registry[serviceName] = asr // save register detail that could be used in next registration
 	return nil
 }
 
-func (c *Consul) Deregister(service string) error {
+func (c *Consul) Deregister(ctx context.Context, service string) error {
 	if r := c.registry[service]; r == nil {
 		return fmt.Errorf("not registered")
 	} else {
 		delete(c.registry, service)
-		return c.client.Agent().ServiceDeregister(r.ID)
+		opts := (&capi.QueryOptions{}).WithContext(ctx)
+		return c.client.Agent().ServiceDeregisterOpts(r.ID, opts)
 	}
 }
 
 // Discover return a list of instances in healthy status
-func (c *Consul) Discover(ctx context.Context, serviceName string, block bool) (list []abstract.ServiceInstance, err error) {
+func (c *Consul) Discover(ctx context.Context, serviceName string, block bool) (list []abstract.Instance, err error) {
 	err = context.DeadlineExceeded // default
 	dur := time.Minute
 	if val := ctx.Value(abstract.CtxDurKey{}); val != nil {
@@ -99,9 +100,9 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 
 	offline := true
 	util.RunTask(ctx, func() {
-		var list []abstract.ServiceInstance
+		var list []abstract.Instance
 		list, err = c.getInstances(service, dur, false)
-		lo.ForEach(list, func(item abstract.ServiceInstance, index int) {
+		lo.ForEach(list, func(item abstract.Instance, index int) {
 			if item.ID == params.ID {
 				offline = false
 			}
@@ -121,7 +122,7 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 }
 
 // 发现健康的端点列表
-func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block bool) (list []abstract.ServiceInstance, err error) {
+func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block bool) (list []abstract.Instance, err error) {
 	opt := &capi.QueryOptions{WaitIndex: c.lastIndex, WaitTime: waitTime, UseCache: true, MaxAge: time.Minute * 5}
 	if !block {
 		opt.WaitIndex = 0 // set to 0 to disable blocking query
@@ -150,7 +151,7 @@ func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block 
 			continue
 		}
 
-		inst := abstract.ServiceInstance{
+		inst := abstract.Instance{
 			ID:       s.Service.ID,
 			Name:     serviceName,
 			Host:     s.Service.Address,
@@ -162,7 +163,7 @@ func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block 
 	return list, nil
 }
 
-func (c *Consul) Stop() {
+func (c *Consul) Stop(ctx context.Context) {
 	for _, r := range c.registry {
 		err := c.client.Agent().ServiceDeregister(r.ID)
 		if err != nil {

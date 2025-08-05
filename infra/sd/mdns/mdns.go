@@ -45,21 +45,20 @@ var _ abstract.ServiceDiscovery = (*Mdns)(nil)
 // set, because mDNS is a multicast protocol and the domain name
 // is used to filter the packets.
 const mDnsDomain = "microsvc."
-const Name = "mDNS"
 
 func New() *Mdns {
 	return &Mdns{registry: make(map[string]*registry), instCache: map[string]map[string]int8{}}
 }
 
 func (m *Mdns) Name() string {
-	return Name
+	return "mDNS"
 }
 
 func getServerId(svc, host string, port int) string {
 	return fmt.Sprintf("%s:%s:%d", svc, host, port)
 }
 
-func (m *Mdns) Register(serviceName string, host string, port int, metadata map[string]string) (err error) {
+func (m *Mdns) Register(ctx context.Context, serviceName string, host string, port int, metadata map[string]string) (err error) {
 	if m.registry[serviceName] != nil {
 		return fmt.Errorf("mdns: already registered")
 	}
@@ -80,7 +79,7 @@ func (m *Mdns) Register(serviceName string, host string, port int, metadata map[
 	return
 }
 
-func (m *Mdns) Deregister(service string) error {
+func (m *Mdns) Deregister(ctx context.Context, service string) error {
 	if rs := m.registry[service]; rs == nil {
 		return fmt.Errorf("mdns: not register")
 	} else {
@@ -89,7 +88,7 @@ func (m *Mdns) Deregister(service string) error {
 	}
 }
 
-func (m *Mdns) Discover(ctx context.Context, svc string, block bool) (instances []abstract.ServiceInstance, err error) {
+func (m *Mdns) Discover(ctx context.Context, svc string, block bool) (instances []abstract.Instance, err error) {
 	asyncRecv := func(entries chan *mdns.ServiceEntry) {
 		defer func() {
 			//fmt.Printf("2222 %+v  %s\n", instances, svc)
@@ -104,7 +103,7 @@ func (m *Mdns) Discover(ctx context.Context, svc string, block bool) (instances 
 				}
 				md := make(map[string]string)
 				_ = json.Unmarshal([]byte(entry.Info), &md)
-				instances = append(instances, abstract.ServiceInstance{
+				instances = append(instances, abstract.Instance{
 					Name:     entry.Name, // hostname.service.domain by mDNS
 					Host:     entry.AddrV4.String(),
 					Port:     entry.Port,
@@ -139,7 +138,7 @@ func (m *Mdns) HealthCheck(ctx context.Context, service string) error {
 	panic("implement me")
 }
 
-func (m *Mdns) updateCache(serviceName string, instances []abstract.ServiceInstance) (map[string]int8, bool) {
+func (m *Mdns) updateCache(serviceName string, instances []abstract.Instance) (map[string]int8, bool) {
 	changed := false
 
 	var newCache map[string]int8
@@ -153,7 +152,7 @@ func (m *Mdns) updateCache(serviceName string, instances []abstract.ServiceInsta
 		newCache = make(map[string]int8)
 	}
 
-	lo.ForEach(instances, func(item abstract.ServiceInstance, index int) {
+	lo.ForEach(instances, func(item abstract.Instance, index int) {
 		if cache[item.Addr()] == 0 {
 			changed = true
 		}
@@ -165,7 +164,7 @@ func (m *Mdns) updateCache(serviceName string, instances []abstract.ServiceInsta
 	return cache, changed || len(instances) != len(cache)
 }
 
-func (m *Mdns) Stop() {
+func (m *Mdns) Stop(ctx context.Context) {
 	//TODO implement me
 	panic("implement me")
 }

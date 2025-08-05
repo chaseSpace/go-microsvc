@@ -65,8 +65,11 @@ type XConfig struct {
 type ServiceDiscovery struct {
 	FixedSvcIp string `mapstructure:"fixed_svc_ip"`
 	Consul     struct {
-		Address string `mapstructure:"address"`
+		Endpoints []string `mapstructure:"endpoints"`
 	} `mapstructure:"consul"`
+	Etcd struct {
+		Endpoints []string `mapstructure:"endpoints"`
+	} `mapstructure:"etcd"`
 }
 
 type GRPCConfig struct {

@@ -9,6 +9,6 @@ func healthCheckAttr(uniqueName, tcpAddr string) *capi.AgentServiceCheck {
 		Timeout:  "3s",
 		TCP:      tcpAddr,
 		//Status:   capi.HealthPassing, // 不建议指定初始状态，而是等待consul自动检测
-		DeregisterCriticalServiceAfter: "30s", // 下线超时后自动注销
+		DeregisterCriticalServiceAfter: "18s", // 状态持续异常超时后自动注销
 	}
 }

@@ -66,7 +66,11 @@ service_discovery:
   # windows 或 linux 使用：172.17.0.1 （即默认docker与主机的bridge网络网关）
   fixed_svc_host: host.docker.internal
   consul:
-    address: localhost:8500
+    endpoints: [ "localhost:8500" ]
+    # 自定义认证方式...
+  etcd:
+    endpoints: [ "localhost:2379" ]
+    # 自定义认证方式...
 
 mq_config:
   redis:

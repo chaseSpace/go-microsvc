@@ -9,11 +9,13 @@ import (
 	"microsvc/infra/sd"
 	"microsvc/infra/sd/abstract"
 	"microsvc/infra/sd/consul"
+	"microsvc/infra/sd/etcd"
 	"microsvc/infra/sd/mdns"
 	"microsvc/infra/sd/simple_sd"
 	"microsvc/infra/xgrpc"
 	"microsvc/pkg/xlog"
 	"microsvc/util/graceful"
+	"strings"
 	"sync"
 )
 
@@ -38,12 +40,14 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 		switch impl {
 		case "simple_sd":
 			rootSD = simple_sd.New(cc.SimpleSdHttpPort)
+		case "etcd":
+			rootSD, err = etcd.New(cc.ServiceDiscovery.Etcd.Endpoints)
 		case "consul":
-			rootSD, err = consul.New(cc.ServiceDiscovery.Consul.Address)
+			rootSD, err = consul.New(strings.Join(cc.ServiceDiscovery.Consul.Endpoints, ","))
 		case "mdns":
 			rootSD = mdns.New()
 		default:
-			err = fmt.Errorf("invalid sd impl: %s", impl)
+			err = fmt.Errorf("invalid svccli impl: %s", impl)
 		}
 
 		onEnd(must, err)

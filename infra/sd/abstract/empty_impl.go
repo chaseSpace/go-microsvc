@@ -14,15 +14,15 @@ func (e Empty) Name() string {
 	return "empty"
 }
 
-func (e Empty) Register(serviceName string, address string, port int, metadata map[string]string) error {
+func (e Empty) Register(ctx context.Context, serviceName string, address string, port int, metadata map[string]string) error {
 	return nil
 }
 
-func (e Empty) Deregister(serviceName string) error {
+func (e Empty) Deregister(ctx context.Context, serviceName string) error {
 	return nil
 }
 
-func (e Empty) Discover(ctx context.Context, serviceName string, block bool) ([]ServiceInstance, error) {
+func (e Empty) Discover(ctx context.Context, serviceName string, block bool) ([]Instance, error) {
 	if block {
 		time.Sleep(time.Millisecond * 100) // mock block
 	}
@@ -33,4 +33,4 @@ func (e Empty) HealthCheck(ctx context.Context, service string) error {
 	return nil
 }
 
-func (e Empty) Stop() {}
+func (e Empty) Stop(ctx context.Context) {}

@@ -10,6 +10,7 @@ import (
 	"microsvc/enums"
 	"microsvc/infra/sd/abstract"
 	"microsvc/infra/sd/consul"
+	"microsvc/infra/sd/etcd"
 	"microsvc/infra/sd/mdns"
 	"microsvc/infra/sd/simple_sd"
 	"microsvc/pkg/xlog"
@@ -18,6 +19,7 @@ import (
 	"microsvc/util/uip"
 	simple_sd2 "microsvc/xvendor/simple_sd"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -26,7 +28,7 @@ import (
 var registeredServices []string
 var gCtx, cancelGCtx = context.WithCancel(context.TODO())
 
-const Impl = "consul" // 统一指定所有服务使用的注册发现组件，支持 consul | simple_sd | mdns
+const Impl = "etcd" // 统一指定所有服务使用的注册发现组件，支持 consul | etcd | simple_sd | mdns
 const logPrefix = "sd: "
 
 var rootSD abstract.ServiceDiscovery
@@ -45,16 +47,21 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 				}
 				rootSD = simple_sd.New(cc.SimpleSdHttpPort)
 				//tryRunSimpleSdServer(cc.SimpleSdHttpPort)
-				go startSdDaemon(gCtx)
 			} else {
 				err = fmt.Errorf("invalid cc.SimpleSdHttpPort: %d", cc.SimpleSdHttpPort)
 			}
+		case "etcd":
+			rootSD, err = etcd.New(cc.ServiceDiscovery.Etcd.Endpoints)
 		case "consul":
-			rootSD, err = consul.New(cc.ServiceDiscovery.Consul.Address)
+			rootSD, err = consul.New(strings.Join(cc.ServiceDiscovery.Consul.Endpoints, ","))
 		case "mdns": // 仅支持mac
 			rootSD = mdns.New()
 		default:
 			err = fmt.Errorf("invalid sd Impl: %s", Impl)
+		}
+
+		if err == nil {
+			go startSdDaemon(gCtx)
 		}
 		finished(must, err)
 	}
@@ -79,11 +86,13 @@ func MustRegister(reg ...deploy.RegisterSvc) {
 		if addr == "" {
 			addr = selfIp
 		}
-		err := rootSD.Register(name, addr, port, r.RegGRPCMeta())
-		if err != nil {
-			xlog.Panic(logPrefix+"register svc failed", zap.String("sd-name", rootSD.Name()),
-				zap.String("reg_svc", name), zap.String("reg_addr", addr), zap.Int("port", port), zap.Error(err))
-		}
+		util.RunTaskWithCtxTimeout(time.Second*3, func(ctx context.Context) {
+			err := rootSD.Register(ctx, name, addr, port, r.RegGRPCMeta())
+			if err != nil {
+				xlog.Panic(logPrefix+"register svc failed", zap.String("sd-name", rootSD.Name()),
+					zap.String("reg_svc", name), zap.String("reg_addr", addr), zap.Int("port", port), zap.Error(err))
+			}
+		})
 		xlog.Info(logPrefix+"register svc success", zap.String("sd-name", rootSD.Name()),
 			zap.String("reg_svc", name),
 			zap.String("addr", fmt.Sprintf("%s:%d", addr, port)))
@@ -94,7 +103,10 @@ func MustRegister(reg ...deploy.RegisterSvc) {
 
 func Stop() {
 	cancelGCtx()
-	rootSD.Stop()
+	util.RunTaskWithCtxTimeout(time.Second*10, func(ctx context.Context) {
+		rootSD.Stop(ctx)
+	})
+	xlog.Debug(fmt.Sprintf("sd: [%s] resource released...", Impl))
 }
 
 // startSdDaemon automatically reconnect the service to the registry center in case of service

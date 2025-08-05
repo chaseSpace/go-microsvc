@@ -29,7 +29,6 @@ var _ abstract.ServiceDiscovery = (*SimpleSd)(nil)
 var logPrefix = "simple_sd."
 
 const (
-	Name          = "simple_sd"
 	httpResOkCode = 200
 
 	registerPath    = "/service/register"
@@ -43,7 +42,7 @@ func (s *SimpleSd) getRequestUrl(path string) string {
 }
 
 func (s *SimpleSd) Name() string {
-	return Name
+	return "simple_sd"
 }
 
 type httpRes struct {
@@ -52,7 +51,7 @@ type httpRes struct {
 	Data interface{} `json:"Data,omit_empty"`
 }
 
-func (s *SimpleSd) Register(service string, host string, port int, metadata map[string]string) error {
+func (s *SimpleSd) Register(ctx context.Context, service string, host string, port int, metadata map[string]string) error {
 	if s.registry[service] != nil {
 		return fmt.Errorf("already registered")
 	}
@@ -76,7 +75,7 @@ func (s *SimpleSd) Register(service string, host string, port int, metadata map[
 	return nil
 }
 
-func (s *SimpleSd) Deregister(service string) error {
+func (s *SimpleSd) Deregister(ctx context.Context, service string) error {
 	params := s.registry[service]
 	if params == nil {
 		return xerr.ErrInternal.New("never called Register")
@@ -101,7 +100,7 @@ func (s *SimpleSd) Deregister(service string) error {
 	return nil
 }
 
-func (s *SimpleSd) Discover(ctx context.Context, serviceName string, block bool) ([]abstract.ServiceInstance, error) {
+func (s *SimpleSd) Discover(ctx context.Context, serviceName string, block bool) ([]abstract.Instance, error) {
 	req := &simple_sd.DiscoveryReq{
 		Service:   serviceName,
 		LastHash:  s.lastHash,
@@ -121,8 +120,8 @@ func (s *SimpleSd) Discover(ctx context.Context, serviceName string, block bool)
 		return nil, xerr.ErrInternal.New("discovery failed, got resp: %+v", res)
 	}
 	s.lastHash = data.Hash
-	return lo.Map(data.Instances, func(item simple_sd.ServiceInstance, index int) abstract.ServiceInstance {
-		return abstract.ServiceInstance{
+	return lo.Map(data.Instances, func(item simple_sd.ServiceInstance, index int) abstract.Instance {
+		return abstract.Instance{
 			ID:       item.Id,
 			Name:     item.Name,
 			IsUDP:    item.IsUDP,
@@ -154,15 +153,15 @@ func (s *SimpleSd) HealthCheck(ctx context.Context, service string) error {
 	if !rspBody.Registered {
 		xlog.Warn(fmt.Sprintf(logPrefix+"HealthCheck: service [%s - id:%s] offline, do re-register now", service, params.Id))
 		delete(s.registry, params.Name)
-		err := s.Register(params.Name, params.Host, params.Port, params.Metadata)
+		err := s.Register(context.TODO(), params.Name, params.Host, params.Port, params.Metadata)
 		return err
 	}
 	return nil
 }
 
-func (s *SimpleSd) Stop() {
+func (s *SimpleSd) Stop(ctx context.Context) {
 	for _, r := range s.registry {
-		err := s.Deregister(r.Name)
+		err := s.Deregister(context.TODO(), r.Name)
 		if err != nil {
 			xlog.Error(logPrefix+"Stop: deregister fail", zap.Error(err), zap.String("svc", r.Name))
 		} else {
