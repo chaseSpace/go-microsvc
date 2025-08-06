@@ -147,9 +147,9 @@ func (i *InstanceImpl) query(block bool) error {
 	}
 
 	if len(entries) == 0 {
-		xlog.Warn(logPrefix+"discover nothing", zap.String("service", i.svc))
+		xlog.Warn(logPrefix+"discover nothing", zap.String("target-svc", i.svc))
 	} else {
-		xlog.Debug(logPrefix+"discover result", zap.Any("entries", entries))
+		xlog.Debug(logPrefix+"discover result", zap.Any("entries", entries), zap.String("target-svc", i.svc))
 	}
 
 	var availableEntries = make(map[string]int8)
@@ -182,7 +182,7 @@ func (i *InstanceImpl) query(block bool) error {
 			_ = conn.Conn.Close()
 			i.entryStore.Delete(addr)
 			i.removeInstance(addr)
-			xlog.Debug(logPrefix+"removeInstance", zap.String("addr", addr))
+			xlog.Debug(logPrefix+"remove instance", zap.String("addr", addr), zap.String("target-svc", i.svc))
 		}
 		return true
 	})

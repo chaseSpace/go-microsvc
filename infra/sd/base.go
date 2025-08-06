@@ -28,7 +28,7 @@ import (
 var registeredServices []string
 var gCtx, cancelGCtx = context.WithCancel(context.TODO())
 
-const Impl = "etcd" // 统一指定所有服务使用的注册发现组件，支持 consul | etcd | simple_sd | mdns
+const Impl = "mdns" // 统一指定所有服务使用的注册发现组件，支持 consul | etcd | simple_sd | mdns
 const logPrefix = "sd: "
 
 var rootSD abstract.ServiceDiscovery
@@ -103,9 +103,15 @@ func MustRegister(reg ...deploy.RegisterSvc) {
 
 func Stop() {
 	cancelGCtx()
-	util.RunTaskWithCtxTimeout(time.Second*10, func(ctx context.Context) {
-		rootSD.Stop(ctx)
+
+	var err error
+	isTimeout := util.RunTaskWithCtxTimeout(time.Second*10, func(ctx context.Context) {
+		err = rootSD.Stop(ctx)
 	})
+	if isTimeout || err != nil {
+		xlog.Error(fmt.Sprintf("sd: [%s] resource release failed", Impl), zap.Error(err), zap.Bool("timeout", isTimeout))
+		return
+	}
 	xlog.Debug(fmt.Sprintf("sd: [%s] resource released...", Impl))
 }
 
