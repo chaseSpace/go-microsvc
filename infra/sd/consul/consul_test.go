@@ -11,13 +11,13 @@ func TestConsulSD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	t.Cleanup(func() { sd.Stop() })
+	t.Cleanup(func() { sd.Stop(context.TODO()) })
 
 	serviceName := "consul-svc5"
 	host := "127.0.0.1"
 	port := 8500
 	t.Run("Register", func(t *testing.T) {
-		if err := sd.Register(serviceName, host, port, nil); err != nil {
+		if err := sd.Register(context.TODO(), serviceName, host, port, nil); err != nil {
 			t.Fatalf("Register: %v", err)
 		}
 	})
@@ -38,7 +38,7 @@ func TestConsulSD(t *testing.T) {
 	})
 
 	t.Run("Deregister", func(t *testing.T) {
-		if err := sd.Deregister(serviceName); err != nil {
+		if err := sd.Deregister(context.TODO(), serviceName); err != nil {
 			t.Fatalf("Deregister: %v", err)
 		}
 	})

@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"context"
 	"errors"
-	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/spec"
 	"microsvc/infra/xgrpc"
 	"microsvc/pkg/xerr"
 	"microsvc/pkg/xlog"
@@ -28,7 +28,7 @@ type InstanceImpl struct {
 	curr      *list.Element // current element
 	quit      chan struct{}
 	genClient GenClient
-	sd        abstract.ServiceDiscovery
+	sd        spec.ServiceDiscovery
 }
 
 type GrpcConnWrapper struct {
@@ -41,7 +41,7 @@ type GrpcConnWrapper struct {
 
 type GenClient func(conn *grpc.ClientConn) interface{}
 
-func NewInstance(svc string, genClient GenClient, discovery abstract.ServiceDiscovery) *InstanceImpl {
+func NewInstance(svc string, genClient GenClient, discovery spec.ServiceDiscovery) *InstanceImpl {
 	ins := &InstanceImpl{
 		svc:        svc,
 		entryStore: sync.Map{},
@@ -125,14 +125,25 @@ func (i *InstanceImpl) backgroundRefresh() {
 // 阻塞刷新（首次请求不阻塞）
 func (i *InstanceImpl) query(block bool) error {
 	var (
-		entries []abstract.Instance
+		entries []spec.Instance
 		cc      *grpc.ClientConn
 		err     error
 		ctx     context.Context
 	)
-	discovery := func() (list []abstract.Instance, err error) {
-		ctx = context.WithValue(context.Background(), abstract.CtxDurKey{}, time.Minute*2)
+	discovery := func() (list []spec.Instance, err error) {
+		ctx = context.WithValue(context.Background(), spec.CtxDurKey{}, time.Minute*2)
 		list, err = i.sd.Discover(ctx, i.svc, block)
+		if err != nil {
+			return
+		}
+		for i, ins := range list {
+			if len(ins.Metadata) == 0 {
+				continue
+			}
+			if host := ins.Metadata[spec.MetadataKeyRealHost]; host != "" {
+				list[i].Host = host
+			}
+		}
 		return
 	}
 

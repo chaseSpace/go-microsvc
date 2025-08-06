@@ -1,10 +1,11 @@
-package abstract
+package spec
 
 import (
 	"context"
 	"fmt"
 	"github.com/samber/lo"
 	"sort"
+	"time"
 )
 
 type ServiceDiscovery interface {
@@ -41,3 +42,9 @@ func (slice InstanceSlice) SortedIds() (list []string) {
 }
 
 type CtxDurKey struct{}
+
+const (
+	MetadataKeyRealHost = "_real_host"
+
+	HealthCheckInterval = 8 * time.Second
+)

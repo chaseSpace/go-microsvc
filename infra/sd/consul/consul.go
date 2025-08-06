@@ -6,7 +6,7 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
-	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/spec"
 	"microsvc/pkg/xerr"
 	"microsvc/pkg/xlog"
 	"microsvc/util"
@@ -23,10 +23,12 @@ type Consul struct {
 	sync.RWMutex
 }
 
-var _ abstract.ServiceDiscovery = (*Consul)(nil)
+var _ spec.ServiceDiscovery = (*Consul)(nil)
 var logPrefix = "consul"
 
-const healthCheckNamePrefix = "microsvc-"
+const (
+	healthCheckNamePrefix = "microsvc-"
+)
 
 func New(endpoints string) (*Consul, error) {
 	cfg := capi.DefaultConfig()
@@ -46,27 +48,41 @@ func (c *Consul) Register(ctx context.Context, serviceName string, host string, 
 	c.Lock()
 	defer c.Unlock()
 	if c.registry[serviceName] != nil {
-		return fmt.Errorf("consul: already registered")
+		return fmt.Errorf("consul: service already registered")
 	}
 	id := urand.Strings(4)
 	tcpAddr := fmt.Sprintf("%s:%d", host, port)
+
 	asr := &capi.AgentServiceRegistration{
 		ID:      id,
 		Name:    serviceName,
-		Tags:    []string{"microsvc"},
+		Tags:    []string{"microsvc", id}, // id 也用作tag在Discover时过滤
 		Port:    port,
 		Address: host,
 		Meta:    metadata,
-		Check:   healthCheckAttr(healthCheckNamePrefix+serviceName+"-health", tcpAddr),
+		// 每个服务进程的 CheckID 必须唯一
+		Check: healthCheckAttr(healthCheckNamePrefix+serviceName+"-health"+"-"+id, tcpAddr),
 	}
-
-	opts := capi.ServiceRegisterOpts{ReplaceExistingChecks: true}.WithContext(ctx)
-	err := c.client.Agent().ServiceRegisterOpts(asr, opts)
+	err := c.client.Agent().ServiceRegisterOpts(asr, c.registerOpts(ctx))
 	if err != nil {
 		return err
 	}
 	c.registry[serviceName] = asr // save register detail that could be used in next registration
 	return nil
+}
+
+func (c *Consul) registerOpts(ctx context.Context) capi.ServiceRegisterOpts {
+	return capi.ServiceRegisterOpts{ReplaceExistingChecks: true}.WithContext(ctx)
+}
+
+func (c *Consul) reRegister(ctx context.Context, serviceName string) error {
+	c.RLock()
+	asr := c.registry[serviceName]
+	c.RUnlock()
+	if asr == nil {
+		return fmt.Errorf("consul: service never registered")
+	}
+	return c.client.Agent().ServiceRegisterOpts(asr, c.registerOpts(ctx))
 }
 
 func (c *Consul) Deregister(ctx context.Context, service string) error {
@@ -82,14 +98,14 @@ func (c *Consul) Deregister(ctx context.Context, service string) error {
 }
 
 // Discover return a list of instances in healthy status
-func (c *Consul) Discover(ctx context.Context, serviceName string, block bool) (list []abstract.Instance, err error) {
+func (c *Consul) Discover(ctx context.Context, serviceName string, block bool) (list []spec.Instance, err error) {
 	err = context.DeadlineExceeded // default
 	dur := time.Minute
-	if val := ctx.Value(abstract.CtxDurKey{}); val != nil {
+	if val := ctx.Value(spec.CtxDurKey{}); val != nil {
 		dur = val.(time.Duration) // use duration here, because Consul do not support block by context
 	}
 	util.RunTask(ctx, func() {
-		list, err = c.getInstances(serviceName, dur, block)
+		list, err = c.getInstances(serviceName, "", dur, block)
 	})
 	return
 }
@@ -103,19 +119,17 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 	}
 	err := context.DeadlineExceeded // default
 	dur := time.Minute
-	if val := ctx.Value(abstract.CtxDurKey{}); val != nil {
+	if val := ctx.Value(spec.CtxDurKey{}); val != nil {
 		dur = val.(time.Duration) // use duration here, because Consul do not support block by context
 	}
 
 	offline := true
 	util.RunTask(ctx, func() {
-		var list []abstract.Instance
-		list, err = c.getInstances(service, dur, false)
-		lo.ForEach(list, func(item abstract.Instance, index int) {
-			if item.ID == params.ID {
-				offline = false
-			}
-		})
+		var list []spec.Instance
+		list, err = c.getInstances(service, params.ID, dur, false)
+		if len(list) == 1 && list[0].ID == params.ID {
+			offline = false
+		}
 	})
 
 	if err != nil {
@@ -124,20 +138,22 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 
 	if offline {
 		xlog.Warn(fmt.Sprintf(logPrefix+".health-check: service [%s - id:%s] offline, do re-register now", service, params.ID))
-		err = c.client.Agent().ServiceRegister(params)
+		err = c.reRegister(ctx, service)
 		return err
 	}
 	return nil
 }
 
 // 发现健康的端点列表
-func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block bool) (list []abstract.Instance, err error) {
-	opt := &capi.QueryOptions{WaitIndex: c.lastIndex, WaitTime: waitTime, UseCache: true, MaxAge: time.Minute * 5}
+func (c *Consul) getInstances(serviceName, id string, waitTime time.Duration, block bool) (list []spec.Instance, err error) {
+	opt := &capi.QueryOptions{WaitIndex: c.lastIndex, WaitTime: waitTime} //UseCache: true, MaxAge: time.Minute * 5,
+
 	if !block {
 		opt.WaitIndex = 0 // set to 0 to disable blocking query
 	}
 	// 即使这里指定了 passingOnly=true，api仍然会返回 Service check fail的端点，下面for循环中会进行二次过滤
-	entries, meta, err := c.client.Health().Service(serviceName, "", true, opt)
+	entries, meta, err := c.client.Health().Service(serviceName, id, true, opt)
+
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +165,6 @@ func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block 
 
 	var checkPass bool
 	for _, s := range entries {
-
 		checkPass = false
 		for _, check := range s.Checks {
 			if strings.HasPrefix(check.CheckID, healthCheckNamePrefix) && check.Status == "passing" {
@@ -160,7 +175,7 @@ func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block 
 			continue
 		}
 
-		inst := abstract.Instance{
+		inst := spec.Instance{
 			ID:       s.Service.ID,
 			Name:     serviceName,
 			Host:     s.Service.Address,
