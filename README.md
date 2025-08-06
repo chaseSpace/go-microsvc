@@ -103,8 +103,9 @@ apple公司实现)、simple_sd(作者实现)。
 
 - [simple_sd](infra/sd/simple_sd)：单机环境使用（开发环境）
 - [mdns](infra/sd/mdns)：Mac环境可用（开发环境）
+- [etcd](infra/sd/etcd)：生产环境使用，需要单独启动etcd组件，参考[部署etcd.md](docs/%E5%BC%80%E5%8F%91%E5%BF%85%E7%9C%8B/%E9%83%A8%E7%BD%B2etcd.md)
 - [consul](infra/sd/consul):
-  生产环境使用，需单独启动consul组件，参考[部署consul](docs%2F%E5%BC%80%E5%8F%91%E5%BF%85%E7%9C%8B%2F%E9%83%A8%E7%BD%B2consul.md)
+  生产环境使用，需单独启动consul组件，参考[部署consul](docs/%E5%BC%80%E5%8F%91%E5%BF%85%E7%9C%8B/%E9%83%A8%E7%BD%B2consul.md)
 
 修改变量：[base.go~Impl](infra/sd/base.go)
 
