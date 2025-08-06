@@ -85,6 +85,8 @@ func (c *SimpleSd) Deregister(ctx context.Context, service string) error {
 	if params == nil {
 		return xerr.ErrInternal.New("not registered")
 	}
+	delete(c.registry, params.Id)
+
 	type deregisterReq struct {
 		Service string
 		Id      string
@@ -101,7 +103,6 @@ func (c *SimpleSd) Deregister(ctx context.Context, service string) error {
 	if res.Code != httpResOkCode {
 		return xerr.ErrInternal.New("deregister failed, got resp: %+v", res)
 	}
-	delete(c.registry, params.Id)
 	return nil
 }
 
