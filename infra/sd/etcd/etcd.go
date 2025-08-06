@@ -82,9 +82,10 @@ func (c *Etcd) Register(ctx context.Context, service string, host string, port i
 func (c *Etcd) Deregister(ctx context.Context, service string) (err error) {
 	ctx = clientv3.WithRequireLeader(ctx) // 确保集群有leader时返回结果，否则返回Err
 
-	c.RLock()
+	c.Lock()
+	defer c.Unlock()
 	leaseID := c.registry[service]
-	c.RUnlock()
+	delete(c.registry, service)
 
 	if leaseID == 0 {
 		return fmt.Errorf("not registered")
