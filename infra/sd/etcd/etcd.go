@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/k0kubun/pp/v3"
+	"github.com/pkg/errors"
+	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.uber.org/zap"
 	"microsvc/infra/sd/abstract"
-	"microsvc/pkg/xlog"
+	"microsvc/pkg/xerr"
 	"microsvc/util/urand"
 	"sync"
 	"time"
@@ -27,7 +28,8 @@ type Etcd struct {
 }
 
 var _ abstract.ServiceDiscovery = (*Etcd)(nil)
-var logPrefix = "etcd"
+
+const logPrefix = "etcd"
 
 // New 创建etcd注册发现客户端
 // 简介：etcd 是一个 分布式、高可用、强一致性的键值存储系统
@@ -84,6 +86,9 @@ func (c *Etcd) Deregister(ctx context.Context, service string) (err error) {
 	leaseID := c.registry[service]
 	c.RUnlock()
 
+	if leaseID == 0 {
+		return fmt.Errorf("not registered")
+	}
 	lease := clientv3.NewLease(c.cli)
 	_, err = lease.Revoke(ctx, leaseID)
 	return
@@ -189,16 +194,22 @@ func (c *Etcd) ttl(ctx context.Context, service string) (int64, error) {
 	return r.TTL, nil
 }
 
-func (c *Etcd) Stop(ctx context.Context) {
-	if c.cli != nil {
-		for svc := range c.registry {
-			err := c.Deregister(ctx, svc)
-			if err != nil {
-				xlog.Error(logPrefix+": deregister fail", zap.Error(err), zap.String("svc", svc))
-			} else {
-				xlog.Info(logPrefix+": deregister success", zap.String("svc", svc))
-			}
-		}
-		_ = c.cli.Close()
+func (c *Etcd) Stop(ctx context.Context) error {
+	if c.cli == nil {
+		return nil
 	}
+	c.RLock()
+	services := lo.MapToSlice(c.registry, func(item string, _ clientv3.LeaseID) string {
+		return item
+	})
+	c.RUnlock()
+
+	var errs []error
+	for _, svc := range services {
+		err := c.Deregister(ctx, svc)
+		if err != nil {
+			errs = append(errs, errors.Wrap(err, fmt.Sprintf("deregister [%s]", svc)))
+		}
+	}
+	return xerr.JoinErrors(errs...)
 }

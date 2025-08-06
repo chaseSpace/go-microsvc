@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/parnurzeal/gorequest"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
-	"go.uber.org/zap"
 	"microsvc/infra/sd/abstract"
 	"microsvc/pkg/xerr"
 	"microsvc/pkg/xlog"
 	"microsvc/util/urand"
 	"microsvc/xvendor/simple_sd"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,7 @@ type SimpleSd struct {
 	serverPort int
 	lastHash   string
 	registry   map[string]*simple_sd.RegisterReq // svc -> id
+	sync.RWMutex
 }
 
 func New(port int) *SimpleSd {
@@ -26,7 +28,8 @@ func New(port int) *SimpleSd {
 }
 
 var _ abstract.ServiceDiscovery = (*SimpleSd)(nil)
-var logPrefix = "simple_sd."
+
+const logPrefix = "simple_sd"
 
 const (
 	httpResOkCode = 200
@@ -37,11 +40,11 @@ const (
 	healthCheckPath = "/service/health_check"
 )
 
-func (s *SimpleSd) getRequestUrl(path string) string {
-	return fmt.Sprintf("http://localhost:%d%s", s.serverPort, path)
+func (c *SimpleSd) getRequestUrl(path string) string {
+	return fmt.Sprintf("http://localhost:%d%s", c.serverPort, path)
 }
 
-func (s *SimpleSd) Name() string {
+func (c *SimpleSd) Name() string {
 	return "simple_sd"
 }
 
@@ -51,8 +54,8 @@ type httpRes struct {
 	Data interface{} `json:"Data,omit_empty"`
 }
 
-func (s *SimpleSd) Register(ctx context.Context, service string, host string, port int, metadata map[string]string) error {
-	if s.registry[service] != nil {
+func (c *SimpleSd) Register(ctx context.Context, service string, host string, port int, metadata map[string]string) error {
+	if c.registry[service] != nil {
 		return fmt.Errorf("already registered")
 	}
 	req := &simple_sd.RegisterReq{ServiceInstance: simple_sd.ServiceInstance{
@@ -64,21 +67,23 @@ func (s *SimpleSd) Register(ctx context.Context, service string, host string, po
 		Metadata: metadata,
 	}}
 	res := new(httpRes)
-	_, _, errs := gorequest.New().Post(s.getRequestUrl(registerPath)).SendStruct(req).EndStruct(res)
+	_, _, errs := gorequest.New().Post(c.getRequestUrl(registerPath)).SendStruct(req).EndStruct(res)
 	if len(errs) > 0 {
 		return errs[0]
 	}
 	if res.Code != httpResOkCode {
 		return xerr.ErrInternal.New("register failed, got resp: %+v", res)
 	}
-	s.registry[service] = req
+	c.registry[service] = req
 	return nil
 }
 
-func (s *SimpleSd) Deregister(ctx context.Context, service string) error {
-	params := s.registry[service]
+func (c *SimpleSd) Deregister(ctx context.Context, service string) error {
+	c.Lock()
+	defer c.Unlock()
+	params := c.registry[service]
 	if params == nil {
-		return xerr.ErrInternal.New("never called Register")
+		return xerr.ErrInternal.New("not registered")
 	}
 	type deregisterReq struct {
 		Service string
@@ -89,21 +94,21 @@ func (s *SimpleSd) Deregister(ctx context.Context, service string) error {
 		Id:      params.Id,
 	}
 	res := new(httpRes)
-	_, _, errs := gorequest.New().Post(s.getRequestUrl(deregisterPath)).SendStruct(req).EndStruct(res)
+	_, _, errs := gorequest.New().Post(c.getRequestUrl(deregisterPath)).SendStruct(req).EndStruct(res)
 	if len(errs) > 0 {
 		return errs[0]
 	}
 	if res.Code != httpResOkCode {
 		return xerr.ErrInternal.New("deregister failed, got resp: %+v", res)
 	}
-	delete(s.registry, params.Id)
+	delete(c.registry, params.Id)
 	return nil
 }
 
-func (s *SimpleSd) Discover(ctx context.Context, serviceName string, block bool) ([]abstract.Instance, error) {
+func (c *SimpleSd) Discover(ctx context.Context, serviceName string, block bool) ([]abstract.Instance, error) {
 	req := &simple_sd.DiscoveryReq{
 		Service:   serviceName,
-		LastHash:  s.lastHash,
+		LastHash:  c.lastHash,
 		WaitMaxMs: time.Minute.Milliseconds() * 2,
 	}
 	if !block {
@@ -112,14 +117,14 @@ func (s *SimpleSd) Discover(ctx context.Context, serviceName string, block bool)
 	data := new(simple_sd.DiscoveryRspBody)
 	res := &httpRes{Data: data}
 
-	_, _, errs := gorequest.New().Post(s.getRequestUrl(discoveryPath)).SendStruct(req).EndStruct(res)
+	_, _, errs := gorequest.New().Post(c.getRequestUrl(discoveryPath)).SendStruct(req).EndStruct(res)
 	if len(errs) > 0 {
 		return nil, errs[0]
 	}
 	if res.Code != httpResOkCode {
 		return nil, xerr.ErrInternal.New("discovery failed, got resp: %+v", res)
 	}
-	s.lastHash = data.Hash
+	c.lastHash = data.Hash
 	return lo.Map(data.Instances, func(item simple_sd.ServiceInstance, index int) abstract.Instance {
 		return abstract.Instance{
 			ID:       item.Id,
@@ -132,8 +137,8 @@ func (s *SimpleSd) Discover(ctx context.Context, serviceName string, block bool)
 	}), nil
 }
 
-func (s *SimpleSd) HealthCheck(ctx context.Context, service string) error {
-	params := s.registry[service]
+func (c *SimpleSd) HealthCheck(ctx context.Context, service string) error {
+	params := c.registry[service]
 	if params == nil {
 		return xerr.ErrInternal.New("never called Register")
 	}
@@ -143,7 +148,7 @@ func (s *SimpleSd) HealthCheck(ctx context.Context, service string) error {
 	}
 	rspBody := new(simple_sd.HealthCheckRspBody)
 	res := &httpRes{Data: rspBody}
-	_, _, errs := gorequest.New().Post(s.getRequestUrl(healthCheckPath)).SendStruct(req).EndStruct(res)
+	_, _, errs := gorequest.New().Post(c.getRequestUrl(healthCheckPath)).SendStruct(req).EndStruct(res)
 	if len(errs) > 0 {
 		return errs[0]
 	}
@@ -151,21 +156,30 @@ func (s *SimpleSd) HealthCheck(ctx context.Context, service string) error {
 		return xerr.ErrInternal.New("health check failed, got resp: %+v", res)
 	}
 	if !rspBody.Registered {
-		xlog.Warn(fmt.Sprintf(logPrefix+"HealthCheck: service [%s - id:%s] offline, do re-register now", service, params.Id))
-		delete(s.registry, params.Name)
-		err := s.Register(context.TODO(), params.Name, params.Host, params.Port, params.Metadata)
+		xlog.Warn(fmt.Sprintf(logPrefix+": service [%s - id:%s] offline, do re-register now", service, params.Id))
+		delete(c.registry, params.Name)
+		err := c.Register(context.TODO(), params.Name, params.Host, params.Port, params.Metadata)
 		return err
 	}
 	return nil
 }
 
-func (s *SimpleSd) Stop(ctx context.Context) {
-	for _, r := range s.registry {
-		err := s.Deregister(context.TODO(), r.Name)
+func (c *SimpleSd) Stop(ctx context.Context) error {
+	if c.serverPort == 0 {
+		return nil
+	}
+	c.RLock()
+	services := lo.MapToSlice(c.registry, func(item string, _ *simple_sd.RegisterReq) string {
+		return item
+	})
+	c.RUnlock()
+
+	var errs []error
+	for _, svc := range services {
+		err := c.Deregister(ctx, svc)
 		if err != nil {
-			xlog.Error(logPrefix+"Stop: deregister fail", zap.Error(err), zap.String("svc", r.Name))
-		} else {
-			xlog.Info(logPrefix+"Stop: deregister success", zap.String("svc", r.Name))
+			errs = append(errs, errors.Wrap(err, fmt.Sprintf("deregister [%s]", svc)))
 		}
 	}
+	return xerr.JoinErrors(errs...)
 }
