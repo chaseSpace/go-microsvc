@@ -2,169 +2,210 @@ package mdns
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 	"microsvc/infra/sd/abstract"
-	"microsvc/util"
+	"microsvc/pkg/xerr"
 	"microsvc/util/urand"
 	"microsvc/xvendor/mdns"
 	"net"
+	"strings"
+	"sync"
 	"time"
 )
 
 /*
-INTRODUCTION:
- 	mDNS is a multicast protocol that was developed by Apple Inc, and
-	the domain name is used to filter the packets.
+简介:
+ 	mDNS（Multicast DNS，多播 DNS）是一种零配置网络协议（Zeroconf），
+	用于在本地局域网（如家庭或公司内网）中实现无需 DNS 服务器即可进行主机名解析的功能。
 
-WARNING:
-	mDNS is not suitable for production environments. It is designed
-	for local networks only.
-	And, In Windows, mDNS support may not be stable by default. To
-	completely support mDNS functionality, it is recommended to install
-	Bonjour Print Services for Windows.
+警告：
+	mDNS 不适合用于生产环境，它仅适用于本地局域网使用。
+	此外，在 Windows 系统中，mDNS 的支持可能不稳定。如要在 Windows 体验完整支持 mDNS 功能，
+	建议安装：Bonjour Print Services for Windows
 */
 
 // Mdns implements the abstract.ServiceDiscovery with mDNS (Multicast DNS)
 // protocol using UDP.
-// Note: Mdns should not be used in a production environment.
 type Mdns struct {
-	registry  map[string]*registry // svc -> id
-	instCache map[string]map[string]int8
+	registry map[string]*registryStub // svc -> id
+	sync.RWMutex
+	instCache map[string][]string
 }
 
-type registry struct {
+type registryStub struct {
 	s  *mdns.Server
 	id string
 }
 
 var _ abstract.ServiceDiscovery = (*Mdns)(nil)
 
-// mDnsDomain is the domain name used by mDNS. this is necessary to
-// set, because mDNS is a multicast protocol and the domain name
-// is used to filter the packets.
+const logPrefix = "mdns"
+
+// mDnsDomain 是 mDNS 使用的域名后缀（如 .local）。设置该域名是必要的，
+// 因为 mDNS 是一种多播协议，通过域名来过滤和匹配局域网中的服务公告包。
 const mDnsDomain = "microsvc."
 
 func New() *Mdns {
-	return &Mdns{registry: make(map[string]*registry), instCache: map[string]map[string]int8{}}
+	return &Mdns{registry: make(map[string]*registryStub), instCache: map[string][]string{}}
 }
 
-func (m *Mdns) Name() string {
+func (c *Mdns) Name() string {
 	return "mDNS"
 }
 
-func getServerId(svc, host string, port int) string {
-	return fmt.Sprintf("%s:%s:%d", svc, host, port)
+func getServerId(completeName string) string {
+	name := strings.Split(completeName, ".")[0]
+	return strings.TrimSpace(name)
 }
 
-func (m *Mdns) Register(ctx context.Context, serviceName string, host string, port int, metadata map[string]string) (err error) {
-	if m.registry[serviceName] != nil {
-		return fmt.Errorf("mdns: already registered")
+// Register register a service instance
+// NOTE: 三方库不支持 metadata
+func (c *Mdns) Register(ctx context.Context, serviceName string, host string, port int, metadata map[string]string) (err error) {
+	c.Lock()
+	defer c.Unlock()
+	if c.registry[serviceName] != nil {
+		return fmt.Errorf("already registered")
 	}
 	id := urand.Strings(4)
-	s, err := mdns.NewMDNSService(id, serviceName, mDnsDomain, "", port,
-		[]net.IP{[]byte{127, 0, 0, 1}}, []string{util.ToJsonStr(metadata)})
+
+	ds, err := mdns.NewMDNSService(id, serviceName, mDnsDomain, "", port, []net.IP{net.ParseIP(host)}, nil)
 	if err != nil {
 		return err
 	}
-	server, err := mdns.NewServer(&mdns.Config{Zone: s})
+	server, err := mdns.NewServer(&mdns.Config{Zone: ds})
 	if err != nil {
 		return err
 	}
-	m.registry[serviceName] = &registry{
+	c.registry[serviceName] = &registryStub{
 		s:  server,
 		id: id,
 	}
 	return
 }
 
-func (m *Mdns) Deregister(ctx context.Context, service string) error {
-	if rs := m.registry[service]; rs == nil {
-		return fmt.Errorf("mdns: not register")
+func (c *Mdns) Deregister(ctx context.Context, service string) error {
+	c.Lock()
+	defer c.Unlock()
+	if rs := c.registry[service]; rs == nil {
+		return fmt.Errorf("not registered")
 	} else {
-		delete(m.registry, service)
+		delete(c.registry, service)
 		return rs.s.Shutdown()
 	}
 }
 
-func (m *Mdns) Discover(ctx context.Context, svc string, block bool) (instances []abstract.Instance, err error) {
-	asyncRecv := func(entries chan *mdns.ServiceEntry) {
-		defer func() {
-			//fmt.Printf("2222 %+v  %s\n", instances, svc)
-		}()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case entry := <-entries:
-				if entry == nil { // channel closed
-					return
+func (c *Mdns) Discover(ctx context.Context, svc string, block bool) (instances []abstract.Instance, err error) {
+	if !block {
+		return c.discoverOnce(ctx, svc)
+	}
+	return c.discoverWithWatch(ctx, svc)
+}
+
+func (c *Mdns) discoverOnce(ctx context.Context, svc string) (instances []abstract.Instance, err error) {
+	var result []abstract.Instance
+	entries := make(chan *mdns.ServiceEntry, 10)
+
+	done := make(chan bool, 1)
+	go func() {
+		defer close(done)
+		for entry := range entries {
+			result = append(result, c.entryToInstance(entry))
+		}
+	}()
+
+	err = mdns.Lookup(svc, mDnsDomain, time.Second, entries)
+	close(entries)
+	if err != nil {
+		return nil, err
+	}
+
+	<-done
+	c.updateCacheAndIsChanged(svc, result)
+	return result, nil
+}
+
+func (c *Mdns) discoverWithWatch(ctx context.Context, svc string) (instances []abstract.Instance, err error) {
+	// 由于mdns协议没有server端，所以只能通过高频轮询来获得更高的实时性（服务上下线的感知）
+	ticker := time.NewTicker(time.Second * 3)
+	defer ticker.Stop()
+	var result []abstract.Instance
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			result = nil
+			entries := make(chan *mdns.ServiceEntry, 10)
+
+			done := make(chan bool)
+			go func() {
+				defer close(done)
+				for entry := range entries {
+					result = append(result, c.entryToInstance(entry))
 				}
-				md := make(map[string]string)
-				_ = json.Unmarshal([]byte(entry.Info), &md)
-				instances = append(instances, abstract.Instance{
-					Name:     entry.Name, // hostname.service.domain by mDNS
-					Host:     entry.AddrV4.String(),
-					Port:     entry.Port,
-					Metadata: md,
-				})
+			}()
+
+			err = mdns.Lookup(svc, mDnsDomain, time.Second, entries)
+			close(entries)
+			if err != nil {
+				continue
+			}
+
+			<-done
+
+			if c.updateCacheAndIsChanged(svc, result) {
+				return result, nil
 			}
 		}
 	}
+}
 
-	for {
-		entries := make(chan *mdns.ServiceEntry, 4)
-		go asyncRecv(entries)
+func (c *Mdns) HealthCheck(ctx context.Context, service string) error {
+	c.RLock()
+	defer c.RUnlock()
+	if c.registry[service] == nil {
+		return fmt.Errorf("not registered")
+	}
+	// NOTE: not need
+	return nil
+}
 
-		err = mdns.Lookup(svc, mDnsDomain, entries)
-		close(entries)
-		if err != nil {
-			return
-		}
-
-		_, changed := m.updateCache(svc, instances)
-		if changed || !block {
-			return
-		}
-
-		instances = nil
-		time.Sleep(time.Second * 5) // could tune-up, 5~30s is a good choice
+func (c *Mdns) entryToInstance(entry *mdns.ServiceEntry) abstract.Instance {
+	return abstract.Instance{
+		ID:       getServerId(entry.Name),
+		Name:     entry.Name,
+		Host:     entry.AddrV4.String(),
+		Port:     entry.Port,
+		Metadata: nil,
 	}
 }
 
-func (m *Mdns) HealthCheck(ctx context.Context, service string) error {
-	//TODO implement me
-	panic("implement me")
+func (c *Mdns) updateCacheAndIsChanged(serviceName string, newInstances abstract.InstanceSlice) bool {
+	c.Lock()
+	defer c.Unlock()
+	cachedIds := c.instCache[serviceName]
+	ids := newInstances.SortedIds()
+	c.instCache[serviceName] = ids
+	return !slices.Equal(ids, cachedIds)
 }
 
-func (m *Mdns) updateCache(serviceName string, instances []abstract.Instance) (map[string]int8, bool) {
-	changed := false
-
-	var newCache map[string]int8
-	cache := m.instCache[serviceName]
-	if cache == nil {
-		cache = make(map[string]int8)
-		newCache = cache
-		m.instCache[serviceName] = cache
-		changed = true
-	} else {
-		newCache = make(map[string]int8)
-	}
-
-	lo.ForEach(instances, func(item abstract.Instance, index int) {
-		if cache[item.Addr()] == 0 {
-			changed = true
-		}
-		newCache[item.Addr()] = 1
+func (c *Mdns) Stop(ctx context.Context) error {
+	c.RLock()
+	services := lo.MapToSlice(c.registry, func(item string, value *registryStub) string {
+		return item
 	})
+	c.RUnlock()
 
-	m.instCache[serviceName] = newCache
-
-	return cache, changed || len(instances) != len(cache)
-}
-
-func (m *Mdns) Stop(ctx context.Context) {
-	//TODO implement me
-	panic("implement me")
+	var errs []error
+	for _, svc := range services {
+		err := c.Deregister(ctx, svc)
+		if err != nil {
+			errs = append(errs, errors.Wrap(err, fmt.Sprintf("deregister [%s]", svc)))
+		}
+	}
+	return xerr.JoinErrors(errs...)
 }
