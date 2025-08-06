@@ -33,4 +33,4 @@ func (e Empty) HealthCheck(ctx context.Context, service string) error {
 	return nil
 }
 
-func (e Empty) Stop(ctx context.Context) {}
+func (e Empty) Stop(ctx context.Context) error { return nil }

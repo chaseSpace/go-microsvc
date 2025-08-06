@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	capi "github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
-	"go.uber.org/zap"
 	"microsvc/infra/sd/abstract"
+	"microsvc/pkg/xerr"
 	"microsvc/pkg/xlog"
 	"microsvc/util"
 	"microsvc/util/urand"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,6 +20,7 @@ type Consul struct {
 	client    *capi.Client
 	lastIndex uint64
 	registry  map[string]*capi.AgentServiceRegistration // svc -> id
+	sync.RWMutex
 }
 
 var _ abstract.ServiceDiscovery = (*Consul)(nil)
@@ -40,6 +43,8 @@ func (c *Consul) Name() string {
 }
 
 func (c *Consul) Register(ctx context.Context, serviceName string, host string, port int, metadata map[string]string) error {
+	c.Lock()
+	defer c.Unlock()
 	if c.registry[serviceName] != nil {
 		return fmt.Errorf("consul: already registered")
 	}
@@ -65,6 +70,8 @@ func (c *Consul) Register(ctx context.Context, serviceName string, host string, 
 }
 
 func (c *Consul) Deregister(ctx context.Context, service string) error {
+	c.Lock()
+	defer c.Unlock()
 	if r := c.registry[service]; r == nil {
 		return fmt.Errorf("not registered")
 	} else {
@@ -88,7 +95,9 @@ func (c *Consul) Discover(ctx context.Context, serviceName string, block bool) (
 }
 
 func (c *Consul) HealthCheck(ctx context.Context, service string) error {
+	c.RLock()
 	params := c.registry[service]
+	c.RUnlock()
 	if params == nil {
 		return fmt.Errorf("not registered")
 	}
@@ -163,13 +172,22 @@ func (c *Consul) getInstances(serviceName string, waitTime time.Duration, block 
 	return list, nil
 }
 
-func (c *Consul) Stop(ctx context.Context) {
-	for _, r := range c.registry {
-		err := c.client.Agent().ServiceDeregister(r.ID)
+func (c *Consul) Stop(ctx context.Context) error {
+	if c.client == nil {
+		return nil
+	}
+	c.RLock()
+	services := lo.MapToSlice(c.registry, func(item string, _ *capi.AgentServiceRegistration) string {
+		return item
+	})
+	c.RUnlock()
+
+	var errs []error
+	for _, svc := range services {
+		err := c.Deregister(ctx, svc)
 		if err != nil {
-			xlog.Error(logPrefix+": deregister fail", zap.Error(err), zap.String("svc", r.Name))
-		} else {
-			xlog.Info(logPrefix+": deregister success", zap.String("svc", r.Name))
+			errs = append(errs, errors.Wrap(err, fmt.Sprintf("deregister [%s]", svc)))
 		}
 	}
+	return xerr.JoinErrors(errs...)
 }
