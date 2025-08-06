@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/spec"
 	"microsvc/pkg/xerr"
 	"microsvc/util/urand"
 	"sync"
@@ -27,7 +27,7 @@ type Etcd struct {
 	sync.RWMutex
 }
 
-var _ abstract.ServiceDiscovery = (*Etcd)(nil)
+var _ spec.ServiceDiscovery = (*Etcd)(nil)
 
 const logPrefix = "etcd"
 
@@ -62,7 +62,7 @@ func (c *Etcd) Register(ctx context.Context, service string, host string, port i
 
 	// 2. 写入 kv（带租约）
 	key := fmt.Sprintf(keyPrefix+"%s/%s", service, id)
-	val, _ := json.Marshal(&abstract.Instance{
+	val, _ := json.Marshal(&spec.Instance{
 		ID:       id,
 		Name:     service,
 		IsUDP:    false,
@@ -94,7 +94,7 @@ func (c *Etcd) Deregister(ctx context.Context, service string) (err error) {
 	return
 }
 
-func (c *Etcd) Discover(ctx context.Context, service string, block bool) (list []abstract.Instance, err error) {
+func (c *Etcd) Discover(ctx context.Context, service string, block bool) (list []spec.Instance, err error) {
 	ctx = clientv3.WithRequireLeader(ctx) // 确保集群有leader时返回结果，否则返回Err
 
 	resp, err := c.cli.Get(ctx, fmt.Sprintf(keyPrefix+"%s/", service), clientv3.WithPrefix())
@@ -102,7 +102,7 @@ func (c *Etcd) Discover(ctx context.Context, service string, block bool) (list [
 		return nil, err
 	}
 
-	rmap := map[string]abstract.Instance{}
+	rmap := map[string]spec.Instance{}
 	defer func() {
 		for _, ins := range rmap {
 			list = append(list, ins)
@@ -110,7 +110,7 @@ func (c *Etcd) Discover(ctx context.Context, service string, block bool) (list [
 	}()
 
 	for _, kv := range resp.Kvs {
-		var ins abstract.Instance
+		var ins spec.Instance
 		if err := json.Unmarshal(kv.Value, &ins); err == nil {
 			rmap[string(kv.Key)] = ins
 		} else {
@@ -134,7 +134,7 @@ func (c *Etcd) Discover(ctx context.Context, service string, block bool) (list [
 			for _, ev := range wres.Events {
 				switch ev.Type {
 				case clientv3.EventTypePut:
-					var ins abstract.Instance
+					var ins spec.Instance
 					if err := json.Unmarshal(ev.Kv.Value, &ins); err == nil {
 						rmap[string(ev.Kv.Key)] = ins
 					} else {
