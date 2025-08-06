@@ -97,10 +97,11 @@ func Query(params *QueryParam) error {
 }
 
 // Lookup is the same as Query, however it uses most of the parameters
-func Lookup(service, domain string, entries chan<- *ServiceEntry) error {
+func Lookup(service, domain string, timeout time.Duration, entries chan<- *ServiceEntry) error {
 	params := DefaultParams(service)
 	params.Entries = entries
 	params.Domain = domain
+	params.Timeout = timeout
 	return Query(params)
 }
 

@@ -87,7 +87,7 @@ func NewServer(config *Config) (*Server, error) {
 	return s, nil
 }
 
-// Shutdown is used to shutdown the listener
+// Shutdown is used to shut down the listener
 func (s *Server) Shutdown() error {
 	if !atomic.CompareAndSwapInt32(&s.shutdown, 0, 1) {
 		// something else already closed us
@@ -105,7 +105,7 @@ func (s *Server) Shutdown() error {
 	return nil
 }
 
-// recv is a long running routine to receive packets from an interface
+// recv is a long-running routine to receive packets from an interface
 func (s *Server) recv(c *net.UDPConn) {
 	if c == nil {
 		return
