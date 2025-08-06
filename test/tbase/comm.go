@@ -6,7 +6,7 @@ import (
 	"microsvc/deploy"
 	"microsvc/enums"
 	"microsvc/infra"
-	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/spec"
 	"microsvc/infra/svccli"
 	"microsvc/infra/xgrpc"
 	"microsvc/pkg"
@@ -92,7 +92,7 @@ func TearUpWithEmptySD(svc enums.Svc, svcConf deploy.SvcConfImpl) {
 		pkg.Setup(
 			xlog.Init,
 		)
-		svccli.SetDefaultSD(abstract.Empty{})
+		svccli.SetDefaultSD(spec.Empty{})
 		infra.Setup(
 			//sd.Init(true),
 			svccli.Init(true),

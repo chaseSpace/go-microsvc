@@ -1,4 +1,4 @@
-package abstract
+package spec
 
 import (
 	"context"

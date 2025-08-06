@@ -11,7 +11,7 @@ type SvcListenPortSetter interface {
 }
 
 type RegisterSvc interface {
-	RegGRPCBase() (name string, addr string, port int)
+	RegGRPCBase() (name string, port int)
 	RegGRPCMeta() map[string]string
 }
 

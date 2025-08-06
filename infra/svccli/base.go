@@ -7,11 +7,11 @@ import (
 	"microsvc/deploy"
 	"microsvc/enums"
 	"microsvc/infra/sd"
-	"microsvc/infra/sd/abstract"
 	"microsvc/infra/sd/consul"
 	"microsvc/infra/sd/etcd"
 	"microsvc/infra/sd/mdns"
 	"microsvc/infra/sd/simple_sd"
+	"microsvc/infra/sd/spec"
 	"microsvc/infra/xgrpc"
 	"microsvc/pkg/xlog"
 	"microsvc/util/graceful"
@@ -25,9 +25,9 @@ import (
 
 const impl = sd.Impl
 
-var rootSD abstract.ServiceDiscovery
+var rootSD spec.ServiceDiscovery
 
-func SetDefaultSD(sd abstract.ServiceDiscovery) {
+func SetDefaultSD(sd spec.ServiceDiscovery) {
 	rootSD = sd
 }
 

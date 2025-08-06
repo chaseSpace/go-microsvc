@@ -63,8 +63,8 @@ type XConfig struct {
 }
 
 type ServiceDiscovery struct {
-	FixedSvcIp string `mapstructure:"fixed_svc_ip"`
-	Consul     struct {
+	FixedSvcHost string `mapstructure:"fixed_svc_host"`
+	Consul       struct {
 		Endpoints []string `mapstructure:"endpoints"`
 	} `mapstructure:"consul"`
 	Etcd struct {
@@ -124,12 +124,12 @@ func (s *XConfig) SetHTTP(port int) {
 	s.dynamicHTTPPort = port
 }
 
-func (s *XConfig) RegGRPCBase() (name string, addr string, port int) {
-	return s.Svc.Name(), "", s.dynamicGRPCPort
+func (s *XConfig) RegGRPCBase() (name string, port int) {
+	return s.Svc.Name(), s.dynamicGRPCPort
 }
 
 func (s *XConfig) RegGRPCMeta() map[string]string {
-	return nil
+	return map[string]string{}
 }
 
 func (s *XConfig) GetSvcConf() SvcConfImpl {

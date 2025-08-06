@@ -6,10 +6,10 @@ import (
 	"microsvc/deploy"
 	"microsvc/enums"
 	"microsvc/infra/sd"
-	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/spec"
 )
 
-func SetDefaultSD(sd abstract.ServiceDiscovery) {}
+func SetDefaultSD(sd spec.ServiceDiscovery) {}
 
 func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 	return func(cc *deploy.XConfig, onEnd func(must bool, err error)) {

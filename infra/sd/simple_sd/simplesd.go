@@ -6,7 +6,7 @@ import (
 	"github.com/parnurzeal/gorequest"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
-	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/spec"
 	"microsvc/pkg/xerr"
 	"microsvc/pkg/xlog"
 	"microsvc/util/urand"
@@ -27,7 +27,7 @@ func New(port int) *SimpleSd {
 	return &SimpleSd{serverPort: port, registry: make(map[string]*simple_sd.RegisterReq)}
 }
 
-var _ abstract.ServiceDiscovery = (*SimpleSd)(nil)
+var _ spec.ServiceDiscovery = (*SimpleSd)(nil)
 
 const logPrefix = "simple_sd"
 
@@ -105,7 +105,7 @@ func (c *SimpleSd) Deregister(ctx context.Context, service string) error {
 	return nil
 }
 
-func (c *SimpleSd) Discover(ctx context.Context, serviceName string, block bool) ([]abstract.Instance, error) {
+func (c *SimpleSd) Discover(ctx context.Context, serviceName string, block bool) ([]spec.Instance, error) {
 	req := &simple_sd.DiscoveryReq{
 		Service:   serviceName,
 		LastHash:  c.lastHash,
@@ -125,8 +125,8 @@ func (c *SimpleSd) Discover(ctx context.Context, serviceName string, block bool)
 		return nil, xerr.ErrInternal.New("discovery failed, got resp: %+v", res)
 	}
 	c.lastHash = data.Hash
-	return lo.Map(data.Instances, func(item simple_sd.ServiceInstance, index int) abstract.Instance {
-		return abstract.Instance{
+	return lo.Map(data.Instances, func(item simple_sd.ServiceInstance, index int) spec.Instance {
+		return spec.Instance{
 			ID:       item.Id,
 			Name:     item.Name,
 			IsUDP:    item.IsUDP,
@@ -158,7 +158,7 @@ func (c *SimpleSd) HealthCheck(ctx context.Context, service string) error {
 	if !rspBody.Registered {
 		xlog.Warn(fmt.Sprintf(logPrefix+": service [%s - id:%s] offline, do re-register now", service, params.Id))
 		delete(c.registry, params.Name)
-		err := c.Register(context.TODO(), params.Name, params.Host, params.Port, params.Metadata)
+		err := c.Register(ctx, params.Name, params.Host, params.Port, params.Metadata)
 		return err
 	}
 	return nil

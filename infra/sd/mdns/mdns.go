@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
-	"microsvc/infra/sd/abstract"
+	"microsvc/infra/sd/spec"
 	"microsvc/pkg/xerr"
 	"microsvc/util/urand"
 	"microsvc/xvendor/mdns"
@@ -27,7 +27,7 @@ import (
 	建议安装：Bonjour Print Services for Windows
 */
 
-// Mdns implements the abstract.ServiceDiscovery with mDNS (Multicast DNS)
+// Mdns implements the spec.ServiceDiscovery with mDNS (Multicast DNS)
 // protocol using UDP.
 type Mdns struct {
 	registry map[string]*registryStub // svc -> id
@@ -40,7 +40,7 @@ type registryStub struct {
 	id string
 }
 
-var _ abstract.ServiceDiscovery = (*Mdns)(nil)
+var _ spec.ServiceDiscovery = (*Mdns)(nil)
 
 const logPrefix = "mdns"
 
@@ -97,15 +97,15 @@ func (c *Mdns) Deregister(ctx context.Context, service string) error {
 	}
 }
 
-func (c *Mdns) Discover(ctx context.Context, svc string, block bool) (instances []abstract.Instance, err error) {
+func (c *Mdns) Discover(ctx context.Context, svc string, block bool) (instances []spec.Instance, err error) {
 	if !block {
 		return c.discoverOnce(ctx, svc)
 	}
 	return c.discoverWithWatch(ctx, svc)
 }
 
-func (c *Mdns) discoverOnce(ctx context.Context, svc string) (instances []abstract.Instance, err error) {
-	var result []abstract.Instance
+func (c *Mdns) discoverOnce(ctx context.Context, svc string) (instances []spec.Instance, err error) {
+	var result []spec.Instance
 	entries := make(chan *mdns.ServiceEntry, 10)
 
 	done := make(chan bool, 1)
@@ -127,11 +127,11 @@ func (c *Mdns) discoverOnce(ctx context.Context, svc string) (instances []abstra
 	return result, nil
 }
 
-func (c *Mdns) discoverWithWatch(ctx context.Context, svc string) (instances []abstract.Instance, err error) {
+func (c *Mdns) discoverWithWatch(ctx context.Context, svc string) (instances []spec.Instance, err error) {
 	// 由于mdns协议没有server端，所以只能通过高频轮询来获得更高的实时性（服务上下线的感知）
 	ticker := time.NewTicker(time.Second * 3)
 	defer ticker.Stop()
-	var result []abstract.Instance
+	var result []spec.Instance
 
 	for {
 		select {
@@ -174,8 +174,8 @@ func (c *Mdns) HealthCheck(ctx context.Context, service string) error {
 	return nil
 }
 
-func (c *Mdns) entryToInstance(entry *mdns.ServiceEntry) abstract.Instance {
-	return abstract.Instance{
+func (c *Mdns) entryToInstance(entry *mdns.ServiceEntry) spec.Instance {
+	return spec.Instance{
 		ID:       getServerId(entry.Name),
 		Name:     entry.Name,
 		Host:     entry.AddrV4.String(),
@@ -184,7 +184,7 @@ func (c *Mdns) entryToInstance(entry *mdns.ServiceEntry) abstract.Instance {
 	}
 }
 
-func (c *Mdns) updateCacheAndIsChanged(serviceName string, newInstances abstract.InstanceSlice) bool {
+func (c *Mdns) updateCacheAndIsChanged(serviceName string, newInstances spec.InstanceSlice) bool {
 	c.Lock()
 	defer c.Unlock()
 	cachedIds := c.instCache[serviceName]

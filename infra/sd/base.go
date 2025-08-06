@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"microsvc/deploy"
 	"microsvc/enums"
-	"microsvc/infra/sd/abstract"
 	"microsvc/infra/sd/consul"
 	"microsvc/infra/sd/etcd"
 	"microsvc/infra/sd/mdns"
 	"microsvc/infra/sd/simple_sd"
+	"microsvc/infra/sd/spec"
 	"microsvc/pkg/xlog"
 	"microsvc/util"
 	"microsvc/util/graceful"
@@ -28,10 +28,10 @@ import (
 var registeredServices []string
 var gCtx, cancelGCtx = context.WithCancel(context.TODO())
 
-const Impl = "mdns" // 统一指定所有服务使用的注册发现组件，支持 consul | etcd | simple_sd | mdns
+const Impl = "consul" // 统一指定所有服务使用的注册发现组件，支持 consul | etcd | simple_sd | mdns
 const logPrefix = "sd: "
 
-var rootSD abstract.ServiceDiscovery
+var rootSD spec.ServiceDiscovery
 
 func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 	return func(cc *deploy.XConfig, finished func(must bool, err error)) {
@@ -69,7 +69,8 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 
 // MustRegister 执行注册服务，失败则panic
 func MustRegister(reg ...deploy.RegisterSvc) {
-	selfIp := deploy.XConf.ServiceDiscovery.FixedSvcIp
+	hasFixedSvcHost := deploy.XConf.ServiceDiscovery.FixedSvcHost != ""
+	selfIp := deploy.XConf.ServiceDiscovery.FixedSvcHost
 	if selfIp == "" {
 		localIps, err := uip.GetLocalPrivateIPs(true, "")
 		if err != nil || len(localIps) == 0 {
@@ -79,23 +80,25 @@ func MustRegister(reg ...deploy.RegisterSvc) {
 	}
 
 	for _, r := range reg {
-		name, addr, port := r.RegGRPCBase()
+		name, port := r.RegGRPCBase()
 		if name == "" {
 			panic(fmt.Sprintf(logPrefix + "service name cannot be empty"))
 		}
-		if addr == "" {
-			addr = selfIp
-		}
+
 		util.RunTaskWithCtxTimeout(time.Second*3, func(ctx context.Context) {
-			err := rootSD.Register(ctx, name, addr, port, r.RegGRPCMeta())
+			md := r.RegGRPCMeta()
+			if hasFixedSvcHost {
+				md[spec.MetadataKeyRealHost] = "localhost"
+			}
+			err := rootSD.Register(ctx, name, selfIp, port, md)
 			if err != nil {
 				xlog.Panic(logPrefix+"register svc failed", zap.String("sd-name", rootSD.Name()),
-					zap.String("reg_svc", name), zap.String("reg_addr", addr), zap.Int("port", port), zap.Error(err))
+					zap.String("reg_svc", name), zap.String("reg_addr", selfIp), zap.Int("port", port), zap.Error(err))
 			}
 		})
 		xlog.Info(logPrefix+"register svc success", zap.String("sd-name", rootSD.Name()),
 			zap.String("reg_svc", name),
-			zap.String("addr", fmt.Sprintf("%s:%d", addr, port)))
+			zap.String("addr", fmt.Sprintf("%s:%d", selfIp, port)))
 
 		registeredServices = append(registeredServices, name)
 	}
@@ -120,7 +123,7 @@ func Stop() {
 func startSdDaemon(ctx context.Context) {
 	var err error
 	var errCnt int
-	var ticker = time.NewTicker(time.Second * 5)
+	var ticker = time.NewTicker(spec.HealthCheckInterval)
 	for {
 		select {
 		case <-ticker.C: // health checking
