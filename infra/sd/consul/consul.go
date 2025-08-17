@@ -100,13 +100,17 @@ func (c *Consul) Deregister(ctx context.Context, service string) error {
 // Discover return a list of instances in healthy status
 func (c *Consul) Discover(ctx context.Context, serviceName string, block bool) (list []spec.Instance, err error) {
 	err = context.DeadlineExceeded // default
-	dur := time.Minute
-	if val := ctx.Value(spec.CtxDurKey{}); val != nil {
-		dur = val.(time.Duration) // use duration here, because Consul do not support block by context
+	dur := time.Second * 3
+	if val := ctx.Value(spec.CtxDurKey{}); val != nil && block {
+		dur = val.(time.Duration)
+		util.RunTask(ctx, func() {
+			list, err = c.getInstances(ctx, serviceName, "", dur, block)
+		})
+	} else {
+		util.RunTaskWithCtxTimeout(dur, func(ctx context.Context) {
+			list, err = c.getInstances(ctx, serviceName, "", dur, block)
+		})
 	}
-	util.RunTask(ctx, func() {
-		list, err = c.getInstances(serviceName, "", dur, block)
-	})
 	return
 }
 
@@ -118,16 +122,16 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 		return fmt.Errorf("not registered")
 	}
 	err := context.DeadlineExceeded // default
-	dur := time.Minute
-	if val := ctx.Value(spec.CtxDurKey{}); val != nil {
-		dur = val.(time.Duration) // use duration here, because Consul do not support block by context
-	}
+
+	waitDur := time.Second * 3
+	ctx, cancel := context.WithTimeout(ctx, waitDur)
+	defer cancel()
 
 	offline := true
-	util.RunTask(ctx, func() {
-		var list []spec.Instance
-		list, err = c.getInstances(service, params.ID, dur, false)
-		if len(list) == 1 && list[0].ID == params.ID {
+	var list []spec.Instance
+	list, err = c.getInstances(ctx, service, "", waitDur, false)
+	lo.ForEach(list, func(item spec.Instance, index int) {
+		if item.ID == params.ID {
 			offline = false
 		}
 	})
@@ -145,9 +149,11 @@ func (c *Consul) HealthCheck(ctx context.Context, service string) error {
 }
 
 // 发现健康的端点列表
-func (c *Consul) getInstances(serviceName, id string, waitTime time.Duration, block bool) (list []spec.Instance, err error) {
-	opt := &capi.QueryOptions{WaitIndex: c.lastIndex, WaitTime: waitTime} //UseCache: true, MaxAge: time.Minute * 5,
-
+func (c *Consul) getInstances(ctx context.Context, serviceName, id string, waitTime time.Duration, block bool) (list []spec.Instance, err error) {
+	opt := (&capi.QueryOptions{
+		WaitIndex: c.lastIndex, WaitTime: waitTime,
+		UseCache: true, MaxAge: time.Minute * 5}).
+		WithContext(ctx)
 	if !block {
 		opt.WaitIndex = 0 // set to 0 to disable blocking query
 	}
