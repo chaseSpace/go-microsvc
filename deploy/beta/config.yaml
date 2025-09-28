@@ -7,6 +7,9 @@ admin_token_sign_key: 5aR7Bp3W9Q2v8X1F
 sensitive_info_crypt_key: 7D13gRSkd0o49xE9
 open_api_rate_limit: false
 
+auth:
+  token_expiry: "0" # 增加app端后要使用自动续期策略
+
 grpc:
   log_print_req_max_len: 500 # grpc 日志中打印请求包最大长度
   log_print_resp_max_len: 500 # grpc 日志中日志打印响应包最大长度
