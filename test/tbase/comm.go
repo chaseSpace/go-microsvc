@@ -106,9 +106,19 @@ func isProjectRootDir() bool {
 }
 
 // TestCallCtx 它的traceId在多次使用时是同一个，若需要不同的traceId请直接调用 NewTestCallCtx()
-var TestCallCtx = NewTestCallCtx(true, 1)
+var TestCallCtx = NewTestCallCtx(true, 2)
 var TestCallCtxNoAuth = NewTestCallCtx(false, 0)
 
+func NewTestCallCtxWithToken(token string) context.Context {
+	// 届时在server侧会在ctx中填冲一个uid=1的假用户
+	md := metadata.Pairs(
+		xgrpc.MdKeyTestCall, xgrpc.MdKeyFlagExist,
+		xgrpc.MdKeyTraceId, util.NewKsuid(),
+		xgrpc.MdKeyBizRemoteAddr, "127.0.0.1",
+		xgrpc.MdKeyAuthToken, token,
+	)
+	return metadata.NewOutgoingContext(context.TODO(), md)
+}
 func NewTestCallCtx(isAuth bool, uid int64) context.Context {
 	// 届时在server侧会在ctx中填冲一个uid=1的假用户
 	md := metadata.Pairs(

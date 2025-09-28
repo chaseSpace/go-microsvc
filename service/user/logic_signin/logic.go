@@ -3,6 +3,7 @@ package logic_signin
 import (
 	"context"
 	"fmt"
+	"microsvc/bizcomm/auth"
 	"microsvc/infra/svccli/rpc"
 	"microsvc/model/svc/user"
 	"microsvc/pkg/xerr"
@@ -19,6 +20,30 @@ type ctrl struct {
 }
 
 var Ext ctrl
+
+func (c ctrl) EraseAccount(ctx context.Context, caller *auth.SvcCaller, req *userpb.EraseAccountReq) (res *userpb.EraseAccountRes, err error) {
+	_, u, err := dao.GetUser(ctx, caller.Uid)
+	if err != nil {
+		return nil, err
+	}
+	if u == nil {
+		return nil, xerr.ErrUserNotFound
+	}
+	err = __eraseAccountCheck(ctx, caller.Uid)
+	if err != nil {
+		return nil, err
+	}
+
+	err = __eraseAccount(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+
+	// clean login cache
+	err = __eraseLoginCache(ctx, caller.Uid)
+
+	return &userpb.EraseAccountRes{}, err
+}
 
 func (c ctrl) SignInAll(ctx context.Context, req *userpb.SignInAllReq) (*userpb.SignInAllRes, error) {
 	err := __beforeSignIn(ctx, req)

@@ -292,3 +292,13 @@ func Test_UpdateUserInfo_Avatar(t *testing.T) {
 		},
 	})
 }
+
+func Test_EraseAccount(t *testing.T) {
+	tbase.TearUp(enums.SvcUser, deploy2.UserConf)
+	defer tbase.TearDown()
+
+	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjI3LCJuaWNrbmFtZSI6InVzZXIwIiwic2V4IjoyLCJsb2dpbl9hdCI6IjIwMjUtMDktMjggMTE6NDU6MjIiLCJyZWdfYXQiOiIyMDI1LTA5LTI4IDExOjQ1OjIyIiwiaXNzIjoieC5taWNyb3N2YyIsInN1YiI6IjI3IiwibmJmIjoxNzU5MDMxMTIyLCJpYXQiOjE3NTkwMzExMjIsImp0aSI6IjMzSk5Ec0wxazZHS3FFOXpWdXNERVk3TllNZyJ9.TgnzNTT9VXQM0cbfkPyhjwtPIzGhkCIacSoX89RgoDY"
+	rpcext.User().EraseAccount(tbase.NewTestCallCtxWithToken(token), &userpb.EraseAccountReq{
+		Base: tbase.TestBaseExtReq,
+	})
+}

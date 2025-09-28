@@ -6,21 +6,25 @@ import (
 	"microsvc/pkg/xerr"
 	"microsvc/protocol/svc/commonpb"
 	"microsvc/util/urand"
+	"microsvc/util/utype"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/spf13/cast"
+	"gorm.io/gorm"
 )
 
 const (
-	TableUserUKUID   = "'idx_uid'"
-	TableUserUKPhone = "'idx_phone'"
+	TableUserUKUID   = "'user.idx_uid'"
+	TableUserUKPhone = "'user.idx_phone'"
+	TableUserUKEmail = "'user.idx_reg_type_email'"
 )
 
 type User struct {
 	model.TableBase
+	gorm.DeletedAt
 	Uid         int64               `gorm:"column:uid" json:"uid"` // 内部id
 	Nid         *int64              `gorm:"column:nid" json:"nid"` // 靓号id
 	Avatar      string              `gorm:"column:avatar" json:"avatar"`
@@ -35,7 +39,7 @@ type User struct {
 	Phone       *string             `gorm:"column:phone" json:"phone"`
 	RegChannel  string              `gorm:"column:reg_channel" json:"reg_channel"`
 	RegType     commonpb.SignInType `gorm:"column:reg_type" json:"reg_type"`
-	Email       string              `gorm:"column:email" json:"email"`
+	Email       *string             `gorm:"column:email" json:"email"`
 }
 
 func (u *User) TableName() string {
@@ -107,7 +111,7 @@ func (u *User) ToPB() *commonpb.User {
 		Birthday:  u.Birthday.Format(time.DateOnly),
 		Sex:       u.Sex.ToPB(),
 		Phone:     cast.ToString(u.Phone),
-		Email:     u.Email,
+		Email:     utype.StringVal(u.Email),
 		Avatar:    u.Avatar,
 	}
 }
@@ -218,6 +222,7 @@ const (
 
 type UserRegisterTh struct {
 	model.TableBase
+	gorm.DeletedAt
 	Uid     int64               `gorm:"column:uid" json:"uid"`
 	Account string              `gorm:"column:account" json:"account"`
 	ThType  commonpb.SignInType `gorm:"column:th_type" json:"th_type"`

@@ -56,6 +56,15 @@ func GetUserByPhone(ctx context.Context, in ...string) (list []*user.User, row u
 	return
 }
 
+func GetUserByEmail(ctx context.Context, in ...string) (list []*user.User, row user.User, err error) {
+	err = user.Q.WithContext(ctx).Find(&list, "email in (?)", in).Error
+	if len(list) > 0 {
+		row = *list[0]
+	}
+	err = xerr.WrapMySQL(err)
+	return
+}
+
 func GetUserFromTh(ctx context.Context, type_ commonpb.SignInType, accounts ...string) (list []*user.UserRegisterTh, row user.UserRegisterTh, err error) {
 	err = user.Q.WithContext(ctx).Find(&list, "account in (?) and th_type = ?",
 		accounts, type_).Error

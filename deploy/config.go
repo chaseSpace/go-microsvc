@@ -1,14 +1,17 @@
 package deploy
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"microsvc/consts"
 	"microsvc/enums"
 	"microsvc/pkg/xerr"
 	"microsvc/util"
+	"microsvc/util/utime"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/k0kubun/pp/v3"
 	"github.com/spf13/viper"
@@ -24,6 +27,7 @@ type XConfig struct {
 	SvcTokenSignKey       string            `mapstructure:"svc_token_sign_key"`       // 微服务鉴权token使用的key
 	AdminTokenSignKey     string            `mapstructure:"admin_token_sign_key"`     // Admin鉴权token使用的key
 	SensitiveInfoCryptKey string            `mapstructure:"sensitive_info_crypt_key"` // 敏感信息加密key（如手机号、身份证等）
+	Auth                  Auth              `mapstructure:"auth"`
 	GRPC                  GRPCConfig        `mapstructure:"grpc"`
 	// 动态端口
 	dynamicGRPCPort int
@@ -60,6 +64,26 @@ type XConfig struct {
 
 	// 接管svc的配置
 	svcConf SvcConfImpl
+}
+type Auth struct {
+	TokenExpiry string `mapstructure:"token_expiry"`
+}
+
+func (s *XConfig) GetTokenExpiry() (d time.Duration, e error) {
+	d, e = utime.ParseDuration(s.Auth.TokenExpiry)
+	if e != nil {
+		return
+	}
+	if d == 0 && !s.IsDevEnv() { // 非dev环境不允许0
+		return 0, errors.New("config: token_expiry cannot be 0 on non-dev environment")
+	}
+	return
+}
+
+func (s *XConfig) SelfCheck() error {
+	_, err := s.GetTokenExpiry()
+	// add other check...
+	return err
 }
 
 type ServiceDiscovery struct {

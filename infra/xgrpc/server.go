@@ -542,8 +542,10 @@ func (s ServerInterceptor) __authentication(ctx context.Context, req interface{}
 	// TODO: Check the 'jti' field to prevent replay attacks.
 	xlog.Warn("NEED CHECK `jti` FIELD -- server.interceptor.Authentication", zap.String("jti", jti))
 
-	if !claims.IsValidCredential() {
-		return lang, nil, xerr.ErrUnauthorized.AppendMsg("invalid claims")
+	if is, err := auth.IsUIDErased(ctx, claims.GetCredentialUID()); err != nil {
+		return lang, nil, xerr.ErrInternal.New("check uid erased failed").AutoAppend(err)
+	} else if is {
+		return lang, nil, xerr.ErrUnauthorized.New("User has been deleted")
 	}
 	return
 }
@@ -596,11 +598,7 @@ func ParseSvcAuthToken(tokenStr string, isAdmin bool) (claims auth.AuthenticateU
 		}
 		return []byte(signKey), nil
 	})
-	//if isAdmin {
-	//	pp.Println(1111, claims.(*auth.AdminClaims))
-	//} else {
-	//	pp.Println(2222, claims.(*auth.SvcClaims))
-	//}
+
 	if err != nil {
 		return nil, xerr.ErrUnauthorized.AppendMsg(err.Error())
 	}

@@ -1,16 +1,12 @@
 package deploy
 
 import (
-	"errors"
 	"microsvc/deploy"
-	"microsvc/util/utime"
-	"time"
 )
 
 // SvcConfig 每个服务特有的配置结构
 type SvcConfig struct {
 	deploy.CommConfig   `mapstructure:"root"`
-	Auth                `mapstructure:"auth"`
 	WxApp               `mapstructure:"wx_app"`
 	WxMini              `mapstructure:"wx_mini"`
 	OpenSignInRateLimit bool `mapstructure:"open_sign_in_rate_limit"` // 开启登录频率限制
@@ -19,25 +15,9 @@ type SvcConfig struct {
 	OauthSupport        `mapstructure:"oauth_support"`
 }
 
-type Auth struct {
-	TokenExpiry string `mapstructure:"token_expiry"`
-}
-
-func (s SvcConfig) GetTokenExpiry() (d time.Duration, e error) {
-	d, e = utime.ParseDuration(s.TokenExpiry)
-	if e != nil {
-		return
-	}
-	if d == 0 && !deploy.XConf.IsDevEnv() { // 非dev环境不允许0
-		return 0, errors.New("config: token_expiry cannot be 0 on non-dev environment")
-	}
-	return
-}
-
 func (s SvcConfig) SelfCheck() error {
-	_, err := s.GetTokenExpiry()
 	// add other check...
-	return err
+	return nil
 }
 
 type WxApp struct {

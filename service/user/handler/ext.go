@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"microsvc/bizcomm/auth"
 	"microsvc/protocol/svc/userpb"
 	"microsvc/service/user/logic_profile"
 	"microsvc/service/user/logic_recommend"
@@ -11,6 +12,11 @@ import (
 var Ctrl userpb.UserExtServer = new(ctrl)
 
 type ctrl struct {
+}
+
+func (c ctrl) EraseAccount(ctx context.Context, req *userpb.EraseAccountReq) (*userpb.EraseAccountRes, error) {
+	caller := auth.ExtractSvcUser(ctx)
+	return logic_signin.Ext.EraseAccount(ctx, caller, req)
 }
 
 func (ctrl) SignInAll(ctx context.Context, req *userpb.SignInAllReq) (*userpb.SignInAllRes, error) {

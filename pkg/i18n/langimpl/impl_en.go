@@ -62,7 +62,7 @@ func (e *English) registerSceneErrorForCommon() {
 		ErrorCodeBizTimeout:                "Business Timeout",
 		ErrorCodeThirdParty:                "Exception From Third-party Service",
 		ErrorCodeInvalidRegisterInfo:       "Invalid Registration Details",
-		ErrorCodeUserNotFound:              "User Account Not Found",
+		ErrorCodeUserNotFound:              "User Not Found",
 		ErrorCodeRepeatedOperation:         "Operation Already Performed",
 		ErrorCodeJSONMarshal:               "Failed to Marshal JSON",
 		ErrorCodeJSONUnmarshal:             "Failed to Unmarshal JSON",

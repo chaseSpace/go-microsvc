@@ -2,6 +2,7 @@ package logic_signin
 
 import (
 	"context"
+	"microsvc/bizcomm/auth"
 	"microsvc/bizcomm/mq"
 	"microsvc/consts"
 	"microsvc/infra/xgrpc"
@@ -10,9 +11,48 @@ import (
 	"microsvc/pkg/xerr"
 	"microsvc/protocol/svc/commonpb"
 	"microsvc/protocol/svc/userpb"
+	"microsvc/service/user/cache"
 	"microsvc/service/user/logic_signin/internal"
 	"microsvc/util/ucrypto"
 )
+
+func __eraseAccountCheck(ctx context.Context, uid int64) error {
+	// 可能需要检查账号下的资产是否低于多少 才会允许注销
+	return nil
+}
+
+func __eraseAccount(ctx context.Context, u *user.User) (err error) {
+	tx := user.Q.WithContext(ctx).Begin()
+	var errs []error
+	defer func() {
+		err = xerr.JoinErrors(errs...)
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit().Error
+	}()
+	switch u.RegType {
+	case commonpb.SignInType_SIT_PASSWORD, commonpb.SignInType_SIT_PHONE, commonpb.SignInType_SIT_EMAIL:
+	default:
+		// 其他都是在三方表中额外有数据
+		err = tx.Delete(&user.UserRegisterTh{}, "uid=?", u.Uid).Error
+		errs = append(errs, err)
+	}
+
+	err = tx.Delete(&user.User{}, "uid=?", u.Uid).Error
+	errs = append(errs, err)
+	return
+}
+
+func __eraseLoginCache(ctx context.Context, uid int64) error {
+	err := auth.EraseUID(ctx, uid) // 使其token失效
+	if err != nil {
+		return err
+	}
+	err = cache.ClearUserInfo(ctx, uid)
+	return err
+}
 
 func __beforeSignIn(ctx context.Context, req *userpb.SignInAllReq) (err error) {
 	// 简单的频率检查

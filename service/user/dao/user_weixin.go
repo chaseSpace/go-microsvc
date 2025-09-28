@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Deprecated: 合并到th表
 func CreateUserWeixin(tx *gorm.DB, ent *user.UserRegisterWeixin) error {
 	ent.CreatedAt = time.Now()
 	ent.UpdatedAt = ent.CreatedAt

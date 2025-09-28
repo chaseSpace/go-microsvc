@@ -28,7 +28,7 @@ import (
 var registeredServices []string
 var gCtx, cancelGCtx = context.WithCancel(context.TODO())
 
-const Impl = "consul" // 统一指定所有服务使用的注册发现组件，支持 consul | etcd | simple_sd | mdns
+const Impl = "simple_sd" // 统一指定所有服务使用的注册发现组件，支持 consul | etcd | simple_sd | mdns
 const logPrefix = "sd: "
 
 var rootSD spec.ServiceDiscovery
@@ -71,6 +71,9 @@ func Init(must bool) func(*deploy.XConfig, func(must bool, err error)) {
 func MustRegister(reg ...deploy.RegisterSvc) {
 	hasFixedSvcHost := deploy.XConf.ServiceDiscovery.FixedSvcHost != ""
 	selfIp := deploy.XConf.ServiceDiscovery.FixedSvcHost
+	if selfIp == "" && deploy.XConf.IsDevEnv() {
+		selfIp = "127.0.0.1"
+	}
 	if selfIp == "" {
 		localIps, err := uip.GetLocalPrivateIPs(true, "")
 		if err != nil || len(localIps) == 0 {

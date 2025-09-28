@@ -14,7 +14,6 @@ import (
 	"microsvc/protocol/svc/userpb"
 	"microsvc/service/user/base"
 	"microsvc/service/user/dao"
-	deploy2 "microsvc/service/user/deploy"
 	"microsvc/util"
 	"microsvc/util/db"
 	"microsvc/util/ucrypto"
@@ -60,29 +59,34 @@ func (b Base) commonSignUp(ctx context.Context, tx *gorm.DB, anyAccount, passwor
 	}
 
 	umodel := &user.User{
-		Uid:        1,
-		Nickname:   body.Nickname,
-		Firstname:  body.Firstname,
-		Lastname:   body.Lastname,
-		Birthday:   birth,
-		Sex:        enums.Sex(body.Sex),
-		Avatar:     body.Avatar,
-		Email:      body.Email,
+		Uid:       1, // for check() temporary
+		Nickname:  body.Nickname,
+		Firstname: body.Firstname,
+		Lastname:  body.Lastname,
+		Birthday:  birth,
+		Sex:       enums.Sex(body.Sex),
+		Avatar:    body.Avatar,
+		//Email:      &body.Email,
 		RegChannel: body.Extra.Channel,
 		RegType:    typ,
 		Password:   passwordHash,
 		PasswdSalt: salt,
 	}
+	if body.Email != "" {
+		umodel.Email = &body.Email
+	}
 	switch typ {
 	case commonpb.SignInType_SIT_PHONE:
 		umodel.Phone = &anyAccount
+	case commonpb.SignInType_SIT_EMAIL:
+		umodel.Email = &anyAccount
 	}
 	umodel.GenPartFields()
 	err = umodel.Check() // 检查user各项参数
 	if err != nil {
 		return nil, err
 	}
-	umodel.Uid = 0 // reset uid
+	umodel.Uid = 0 // reset back
 
 	err = Base{}.commonCreateUser(ctx, tx, umodel)
 	if err != nil {
@@ -131,9 +135,13 @@ func (Base) commonCreateUser(ctx context.Context, tx *gorm.DB, userModel *user.U
 			if tableIdx == user.TableUserUKPhone {
 				return false, xerr.ErrAccountAlreadyExists
 			}
+			if tableIdx == user.TableUserUKEmail {
+				return false, xerr.ErrAccountAlreadyExists.New("Email exists")
+			}
 			if tableIdx != user.TableUserUKUID {
 				return false, xerr.ErrInternal.New("unexpected conflict idx: %s for user table", tableIdx)
 			}
+
 			return true, nil
 		}
 		if err != nil {
@@ -168,7 +176,7 @@ func (Base) commonCreateUser(ctx context.Context, tx *gorm.DB, userModel *user.U
 func (Base) GenSignToken(ctx context.Context, umodel *user.User) (string, time.Duration, error) {
 	now := time.Now()
 
-	expiry, err := deploy2.UserConf.GetTokenExpiry()
+	expiry, err := deploy.XConf.GetTokenExpiry()
 	if err != nil {
 		return "", 0, err
 	}

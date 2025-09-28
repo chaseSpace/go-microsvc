@@ -10,7 +10,6 @@ import (
 	"microsvc/protocol/svc/thirdpartypb"
 	"microsvc/protocol/svc/userpb"
 	"microsvc/service/user/dao"
-	"microsvc/util/db"
 	"microsvc/util/urand"
 	"microsvc/util/uregex"
 
@@ -49,7 +48,7 @@ func (a __SignInEmail) CheckSignUpReq(ctx context.Context, req *userpb.SignUpAll
 }
 
 func (__SignInEmail) QueryUser(ctx context.Context, req *userpb.SignInAllReq, ext *SignInExt) (*user.User, error) {
-	_, row, err := dao.GetUserFromTh(ctx, commonpb.SignInType_SIT_EMAIL, req.AnyAccount)
+	_, row, err := dao.GetUserByEmail(ctx, req.AnyAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -60,35 +59,12 @@ func (__SignInEmail) QueryUser(ctx context.Context, req *userpb.SignInAllReq, ex
 	return umodel, err
 }
 
-func (a __SignInEmail) SignUp(ctx context.Context, req *userpb.SignUpAllReq, ext *SignInExt) (umodel *user.User, err error) {
-	// 创建三方注册表记录
-	row := &user.UserRegisterTh{
-		Account: req.AnyAccount,
-		ThType:  req.Type,
-	}
-
+func (a __SignInEmail) SignUp(ctx context.Context, req *userpb.SignUpAllReq, ext *SignInExt) (mod *user.User, err error) {
 	// 注意此时 password 一定非空
 	salt := urand.Strings(4)
-	// 事务内在两个表中插入记录
 	err = user.Q.Transaction(func(tx *gorm.DB) error {
-		req.Body.Email = req.AnyAccount // 邮箱注册
-		umodel, err = Base{}.commonSignUp(ctx, tx, req.AnyAccount, req.Password, salt, req.Type, req.Body)
-		if err != nil {
-			return err
-		}
-		row.Uid = umodel.Uid
-		err = dao.CreateUserTh(tx, row)
-		if err == nil {
-			return nil
-		}
-		conflictIdx := ""
-		if db.IsMysqlDuplicateErr(err, &conflictIdx) {
-			if conflictIdx == user.TableUserThUKAccountThType {
-				// 仅在客户端并发调用接口时可能触发，已经注册成功，调用登录接口即可
-				return xerr.ErrAccountAlreadyExists
-			}
-		}
-		return xerr.WrapMySQL(err)
+		mod, err = Base{}.commonSignUp(ctx, tx, req.AnyAccount, req.Password, salt, req.Type, req.Body)
+		return err
 	})
 	return
 }
