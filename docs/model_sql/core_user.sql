@@ -16,16 +16,18 @@ create table biz_core.user
     phone         varchar(30)                  null,
     reg_channel   varchar(20)                  not null comment '注册渠道',
     reg_type      tinyint                      not null comment '注册类型：见PB：commonpb.SignInType',
-    email         varchar(150)                 not null comment '邮箱',
+    email         varchar(150)                 null comment '邮箱',
     created_at    datetime(3)                  not null default current_timestamp(3),
     updated_at    datetime(3)                  not null default current_timestamp(3) on update current_timestamp(3),
+    deleted_at    datetime(3)                  null,
+    deleted       bool generated always as (deleted_at is not null) comment 'deleted_at的辅助字段，建立唯一索引',
     unique key idx_uid (uid),
-    unique key idx_phone (phone),
-    unique key idx_nid (nid),
+    unique key idx_phone (phone, deleted),
+    unique key idx_reg_type_email (reg_type, email, deleted),
+    unique key idx_nid (nid, deleted),
     key idx_ct (created_at)
 ) default character set utf8mb4 comment '用户核心表';
 
-# alter table biz_core.user add column email varchar(150) not null comment '邮箱';
 
 drop table if exists biz_core.user_ext;
 create table biz_core.user_ext
@@ -73,8 +75,9 @@ create table biz_core.user_register_th
     th_type    tinyint      not null comment '第三方类型：见PB: commonpb.SignInType（限三方登录类型）',
     created_at datetime(3)  not null default current_timestamp(3),
     updated_at datetime(3)  not null default current_timestamp(3) on update current_timestamp(3),
+    deleted_at datetime(3)  null,
+    deleted    bool generated always as (deleted_at is not null) comment 'deleted_at的辅助字段，建立唯一索引',
     unique key uk_uid (uid),
-    unique key uk_account_thtype (account, th_type),
+    unique key uk_account_thtype (account, th_type, deleted),
     key idx_ct (created_at)
 ) default charset utf8mb4 comment '用户表-第三方注册（如谷歌，uid关联用户核心表）';
-
