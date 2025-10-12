@@ -4,12 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"microsvc/protocol/svc/commonpb"
-	"microsvc/util/ujson"
 
 	"github.com/valyala/bytebufferpool"
-	"google.golang.org/protobuf/proto"
-
 	"google.golang.org/grpc/encoding"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const JSONByteBuffer = "json-bytebuffer"
@@ -30,7 +29,7 @@ func (c codecBytes) Marshal(v interface{}) ([]byte, error) {
 		return vb, nil
 	}
 	// Send by sub services
-	return ujson.Marshal(vv)
+	return protojson.MarshalOptions{}.Marshal(vv)
 }
 
 // Unmarshal 如这个方法报错不会运行任何grpc拦截器
@@ -48,9 +47,11 @@ func (c codecBytes) Unmarshal(data []byte, v interface{}) error {
 		return err
 	}
 	// Received on sub services
-	err := ujson.Unmarshal(data, vv)
+	var err error
+	err = protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(data, vv)
 	if err != nil {
 		// Ignoring the origin err. Don't use `xerr` type, it would be captured by grpc Client interceptor `ExtractGRPCErr`
+		// println(666, "unmarshal err:", fmt.Sprintf("%+v\n", err))
 		return errors.New(fmt.Sprintf("invalid request body. Please refer to protobuf type `%T`", vv))
 	}
 	return nil
